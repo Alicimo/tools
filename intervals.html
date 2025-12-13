@@ -69,6 +69,14 @@
   let wakeLock = null;
   let audioCtx = null;
 
+  async function getAudioContext() {
+    // Safari on iOS requires audio contexts to be created/resumed inside
+    // a user gesture before they can play sound.
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === "suspended") await audioCtx.resume();
+    return audioCtx;
+  }
+
   function totalSeconds(kind) {
     return +document.getElementById(`${kind}-seconds`).value || 0;
   }
@@ -88,18 +96,18 @@
       String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
   }
 
-  function playBeep() {
+  async function playBeep() {
     // Use Web Audio to avoid data-URI decoding issues in some browsers.
-    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    const now = audioCtx.currentTime;
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
+    const ctx = await getAudioContext();
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
     osc.type = "sine";
     osc.frequency.value = 880;
     gain.gain.setValueAtTime(0.2, now);
     gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.3);
     osc.connect(gain);
-    gain.connect(audioCtx.destination);
+    gain.connect(ctx.destination);
     osc.start(now);
     osc.stop(now + 0.35);
   }
@@ -147,7 +155,8 @@
     }
   }
 
-  startBtn.onclick = () => {
+  startBtn.onclick = async () => {
+    await getAudioContext();
     startPhase("active");
   };
 
