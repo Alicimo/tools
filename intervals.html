@@ -113,7 +113,7 @@
     const gain = ctx.createGain();
     osc.type = "sine";
     osc.frequency.value = 880;
-    gain.gain.setValueAtTime(0.2, now);
+    gain.gain.setValueAtTime(10, now);
     gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.3);
     osc.connect(gain);
     gain.connect(ctx.destination);
