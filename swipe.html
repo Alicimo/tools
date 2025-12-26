@@ -56,17 +56,49 @@
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const lerp = (a, b, t) => a + (b - a) * t;
 
-  // Simple word bank; you can swap this out.
+  // German vocabulary (German shown first, English revealed on tap)
   const WORDS = [
-    "apricot","nebula","kettle","velvet","cascade","mosaic","saffron","orbit","lullaby","ember",
-    "horizon","cobalt","fable","tango","atlas","ripple","sonnet","pioneer","whisper","quartz",
-    "glacier","pebble","canopy","spectrum","harbor","lantern","opal","meadow","cipher","meridian"
+    { de: "Apfel", en: "apple" },
+    { de: "Buch", en: "book" },
+    { de: "Fenster", en: "window" },
+    { de: "Haus", en: "house" },
+    { de: "Wasser", en: "water" },
+    { de: "Freund", en: "friend" },
+    { de: "Baum", en: "tree" },
+    { de: "Stadt", en: "city" },
+    { de: "Straße", en: "street" },
+    { de: "Hund", en: "dog" },
+    { de: "Katze", en: "cat" },
+    { de: "Zeit", en: "time" },
+    { de: "Welt", en: "world" },
+    { de: "Schule", en: "school" },
+    { de: "Arbeit", en: "work" },
+    { de: "Frage", en: "question" },
+    { de: "Antwort", en: "answer" },
+    { de: "Reise", en: "journey" },
+    { de: "Sonne", en: "sun" },
+    { de: "Mond", en: "moon" },
+    { de: "Meer", en: "sea" },
+    { de: "Berg", en: "mountain" },
+    { de: "Hand", en: "hand" },
+    { de: "Herz", en: "heart" },
+    { de: "Musik", en: "music" },
+    { de: "Bild", en: "picture" },
+    { de: "Sprache", en: "language" },
+    { de: "Brot", en: "bread" },
+    { de: "Milch", en: "milk" },
+    { de: "Kaffee", en: "coffee" }
   ];
 
-  function randomCardText() {
-    const n = Math.floor(rand(2, 5));
-    const chosen = Array.from({length: n}, () => WORDS[Math.floor(rand(0, WORDS.length))]);
-    return chosen.join(" ");
+  function randomCard() {
+    const chosen = WORDS[Math.floor(rand(0, WORDS.length))];
+    return {
+      german: chosen.de,
+      english: chosen.en,
+      revealed: false,
+      shownAt: null,
+      revealDurationMs: null
+    };
   }
 
   // ---------- Canvas setup ----------
@@ -88,7 +120,8 @@
   // ---------- Deck / state ----------
   let deck = [];
   function buildDeck(count = 20) {
-    deck = Array.from({ length: count }, () => ({ text: randomCardText() }));
+    deck = Array.from({ length: count }, () => randomCard());
+    markTopCardShown();
   }
 
   const state = {
@@ -96,11 +129,12 @@
     x: 0,
     y: 0,
     rot: 0,
-    // drag tracking
+    // drag/tap tracking
     dragging: false,
     startX: 0,
     startY: 0,
     pointerId: null,
+    tapCandidate: false,
     // animation
     animating: false,
     // canvas logical size (in device px)
@@ -162,10 +196,18 @@
 
     // text
     ctx.fillStyle = "#111827";
-    ctx.font = `${Math.round(W * 0.055)}px system-ui, -apple-system, Segoe UI, Roboto, Arial`;
+    ctx.font = `${Math.round(W * 0.07)}px system-ui, -apple-system, Segoe UI, Roboto, Arial`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(card.text, W / 2, H / 2);
+    ctx.fillText(card.german, W / 2, H / 2 - H * 0.03);
+
+    ctx.font = `${Math.round(W * 0.045)}px system-ui, -apple-system, Segoe UI, Roboto, Arial`;
+    ctx.fillStyle = "#6b7280";
+    if (card.revealed) {
+      ctx.fillText(card.english, W / 2, H / 2 + H * 0.06);
+    } else {
+      ctx.fillText("Tap to reveal", W / 2, H / 2 + H * 0.06);
+    }
 
     // swipe overlay (LIKE / NOPE)
     if (isTop) {
@@ -179,7 +221,7 @@
         ctx.textAlign = "left";
         ctx.textBaseline = "top";
 
-        const label = like ? "LIKE" : "NOPE";
+        const label = like ? "CORRECT" : "WRONG";
         ctx.fillStyle = like ? "rgba(25,135,84,0.90)" : "rgba(220,53,69,0.90)";
         ctx.strokeStyle = "rgba(255,255,255,0.90)";
         ctx.lineWidth = 6;
@@ -255,10 +297,40 @@
     document.getElementById("log").textContent = text;
   }
 
+  const history = [];
+
+  function formatDuration(ms) {
+    if (ms == null) return "—";
+    const seconds = Math.max(0, ms) / 1000;
+    return `${seconds.toFixed(2)}s`;
+  }
+
+  function markTopCardShown() {
+    if (!deck[0]) return;
+    if (deck[0].shownAt == null) {
+      deck[0].shownAt = performance.now();
+    }
+  }
+
+  function revealCard(card) {
+    if (!card || card.revealed) return;
+    card.revealed = true;
+    card.revealDurationMs = performance.now() - card.shownAt;
+    logAction(`REVEALED: ${card.german} → ${card.english} (${formatDuration(card.revealDurationMs)} to reveal)`);
+  }
+
   function popCard(direction) {
     const card = deck.shift();
     if (!card) return;
-    logAction(`${direction.toUpperCase()}: ${card.text}`);
+    const correct = direction === "like";
+    history.push({
+      german: card.german,
+      english: card.english,
+      correct,
+      revealDurationMs: card.revealDurationMs
+    });
+    logAction(`${correct ? "CORRECT" : "WRONG"}: ${card.german} → ${card.english} (revealed in ${formatDuration(card.revealDurationMs)})`);
+    markTopCardShown();
   }
 
   function animateTo(targetX, targetY, targetRot, done) {
@@ -312,11 +384,15 @@
     if (state.animating) return;
     if (!deck[0]) return;
 
-    state.dragging = true;
     state.pointerId = e.pointerId;
     canvas.setPointerCapture(e.pointerId);
     state.startX = e.clientX;
     state.startY = e.clientY;
+    state.tapCandidate = true;
+
+    if (deck[0].revealed) {
+      state.dragging = true;
+    }
   });
 
   canvas.addEventListener("pointermove", (e) => {
@@ -330,12 +406,25 @@
   });
 
   function endPointer(e) {
-    if (!state.dragging) return;
     if (e.pointerId !== state.pointerId) return;
 
-    state.dragging = false;
+    const dpr = window.devicePixelRatio || 1;
+    const dx = (e.clientX - state.startX) * dpr;
+    const dy = (e.clientY - state.startY) * dpr;
+    const tapThreshold = 12 * dpr;
+
+    if (!deck[0]?.revealed && state.tapCandidate && Math.hypot(dx, dy) <= tapThreshold) {
+      revealCard(deck[0]);
+      render();
+    }
+
+    if (state.dragging) {
+      state.dragging = false;
+      completeSwipeIfNeeded();
+    }
+
     state.pointerId = null;
-    completeSwipeIfNeeded();
+    state.tapCandidate = false;
   }
 
   canvas.addEventListener("pointerup", endPointer);
@@ -344,12 +433,13 @@
     if (state.dragging) {
       state.dragging = false;
       state.pointerId = null;
+      state.tapCandidate = false;
       completeSwipeIfNeeded();
     }
   });
 
   function swipeDirection(direction) {
-    if (state.animating || !deck[0]) return;
+    if (state.animating || !deck[0] || !deck[0].revealed) return;
     const offX = direction === "like" ? state.W * 1.2 : -state.W * 1.2;
     const offRot = direction === "like" ? 0.55 : -0.55;
     animateTo(offX, 0, offRot, () => {
