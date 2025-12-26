@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Canvas Swipe Cards (No React)</title>
+
+  <!-- Bootstrap (CSS only) -->
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+  />
+
+  <style>
+    body { background: #f8f9fa; }
+    .canvas-wrap {
+      width: min(520px, 100%);
+      aspect-ratio: 3 / 4;
+      position: relative;
+    }
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      border-radius: 18px;
+      background: #fff;
+      box-shadow: 0 10px 30px rgba(0,0,0,.10);
+      touch-action: none; /* critical: let us handle touch/pointer swipes */
+    }
+    .hint-badge {
+      font-size: .9rem;
+      user-select: none;
+    }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+  </style>
+</head>
+
+<body>
+  <div class="container py-4">
+    <div class="row justify-content-center">
+      <div class="col-12 col-lg-6">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <div class="fw-semibold">Canvas Swipe</div>
+          <div class="d-flex gap-2">
+            <span class="badge text-bg-secondary hint-badge">← Nope</span>
+            <span class="badge text-bg-secondary hint-badge">Like →</span>
+          </div>
+        </div>
+
+        <div class="canvas-wrap mb-3">
+          <canvas id="swipeCanvas" aria-label="Swipe cards canvas"></canvas>
+        </div>
+
+        <div class="d-flex gap-2">
+          <button id="btnNope" class="btn btn-outline-danger w-50">Nope</button>
+          <button id="btnLike" class="btn btn-outline-success w-50">Like</button>
+        </div>
+
+        <div class="mt-3 p-3 bg-white rounded-3 shadow-sm">
+          <div class="d-flex justify-content-between align-items-center">
+            <div class="fw-semibold">Last action</div>
+            <button id="btnReset" class="btn btn-sm btn-outline-primary">Reset deck</button>
+          </div>
+          <div id="log" class="mono mt-2 small text-secondary">—</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  // ---------- Utilities ----------
+  const rand = (min, max) => Math.random() * (max - min) + min;
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const lerp = (a, b, t) => a + (b - a) * t;
+
+  // Simple word bank; you can swap this out.
+  const WORDS = [
+    "apricot","nebula","kettle","velvet","cascade","mosaic","saffron","orbit","lullaby","ember",
+    "horizon","cobalt","fable","tango","atlas","ripple","sonnet","pioneer","whisper","quartz",
+    "glacier","pebble","canopy","spectrum","harbor","lantern","opal","meadow","cipher","meridian"
+  ];
+
+  function randomCardText() {
+    const n = Math.floor(rand(2, 5));
+    const chosen = Array.from({length: n}, () => WORDS[Math.floor(rand(0, WORDS.length))]);
+    return chosen.join(" ");
+  }
+
+  // ---------- Canvas setup ----------
+  const canvas = document.getElementById("swipeCanvas");
+  const ctx = canvas.getContext("2d");
+
+  // Make canvas crisp on HiDPI screens
+  function resizeCanvasToDisplaySize() {
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    const w = Math.round(rect.width * dpr);
+    const h = Math.round(rect.height * dpr);
+    if (canvas.width !== w || canvas.height !== h) {
+      canvas.width = w;
+      canvas.height = h;
+    }
+  }
+
+  // ---------- Deck / state ----------
+  let deck = [];
+  function buildDeck(count = 20) {
+    deck = Array.from({ length: count }, () => ({
+      text: randomCardText(),
+      // subtle per-card tint
+      hue: Math.floor(rand(180, 320)),
+    }));
+  }
+
+  const state = {
+    // active card transform
+    x: 0,
+    y: 0,
+    rot: 0,
+    // drag tracking
+    dragging: false,
+    startX: 0,
+    startY: 0,
+    pointerId: null,
+    // animation
+    animating: false,
+    // canvas logical size (in device px)
+    W: 0,
+    H: 0
+  };
+
+  // thresholds in *canvas device pixels*
+  function swipeThreshold() {
+    return state.W * 0.22; // ~22% width
+  }
+
+  // ---------- Drawing ----------
+  function roundRectPath(x, y, w, h, r) {
+    const rr = Math.min(r, w / 2, h / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + rr, y);
+    ctx.arcTo(x + w, y, x + w, y + h, rr);
+    ctx.arcTo(x + w, y + h, x, y + h, rr);
+    ctx.arcTo(x, y + h, x, y, rr);
+    ctx.arcTo(x, y, x + w, y, rr);
+    ctx.closePath();
+  }
+
+  function drawCard(card, tx, ty, rot, isTop) {
+    const W = state.W;
+    const H = state.H;
+
+    // Card size
+    const cw = W * 0.86;
+    const ch = H * 0.82;
+    const cx = (W - cw) / 2;
+    const cy = (H - ch) / 2;
+
+    ctx.save();
+    // move to center, apply transform, then draw centered card
+    ctx.translate(W / 2 + tx, H / 2 + ty);
+    ctx.rotate(rot);
+    ctx.translate(-W / 2, -H / 2);
+
+    // shadow
+    ctx.save();
+    ctx.globalAlpha = isTop ? 0.20 : 0.10;
+    ctx.fillStyle = "#000";
+    roundRectPath(cx + 8, cy + 10, cw, ch, 22);
+    ctx.fill();
+    ctx.restore();
+
+    // background
+    ctx.fillStyle = "#ffffff";
+    roundRectPath(cx, cy, cw, ch, 22);
+    ctx.fill();
+
+    // header strip tint
+    const grad = ctx.createLinearGradient(cx, cy, cx + cw, cy);
+    grad.addColorStop(0, `hsla(${card.hue}, 80%, 65%, 0.35)`);
+    grad.addColorStop(1, `hsla(${(card.hue + 40) % 360}, 80%, 65%, 0.10)`);
+    ctx.fillStyle = grad;
+    roundRectPath(cx, cy, cw, ch * 0.28, 22);
+    ctx.fill();
+
+    // border
+    ctx.strokeStyle = "rgba(0,0,0,0.08)";
+    ctx.lineWidth = 2;
+    roundRectPath(cx, cy, cw, ch, 22);
+    ctx.stroke();
+
+    // text
+    ctx.fillStyle = "#111827";
+    ctx.font = `${Math.round(W * 0.055)}px system-ui, -apple-system, Segoe UI, Roboto, Arial`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(card.text, W / 2, H / 2);
+
+    // swipe overlay (LIKE / NOPE)
+    if (isTop) {
+      const t = clamp(tx / swipeThreshold(), -1, 1);
+      if (Math.abs(t) > 0.05) {
+        ctx.save();
+        const like = t > 0;
+        const alpha = Math.min(1, Math.abs(t));
+        ctx.globalAlpha = 0.9 * alpha;
+        ctx.font = `${Math.round(W * 0.07)}px system-ui, -apple-system, Segoe UI, Roboto, Arial`;
+        ctx.textAlign = "left";
+        ctx.textBaseline = "top";
+
+        const label = like ? "LIKE" : "NOPE";
+        ctx.fillStyle = like ? "rgba(25,135,84,0.90)" : "rgba(220,53,69,0.90)";
+        ctx.strokeStyle = "rgba(255,255,255,0.90)";
+        ctx.lineWidth = 6;
+
+        const px = cx + cw * 0.08;
+        const py = cy + ch * 0.10;
+
+        // slight rotate for stamp
+        ctx.translate(px, py);
+        ctx.rotate(like ? -0.18 : 0.18);
+        ctx.translate(-px, -py);
+
+        ctx.strokeText(label, px, py);
+        ctx.fillText(label, px, py);
+        ctx.restore();
+      }
+    }
+
+    ctx.restore();
+  }
+
+  function render() {
+    resizeCanvasToDisplaySize();
+    state.W = canvas.width;
+    state.H = canvas.height;
+
+    ctx.clearRect(0, 0, state.W, state.H);
+
+    // Draw next card under the top card for depth
+    const top = deck[0];
+    const next = deck[1];
+
+    if (!top) {
+      // empty state
+      ctx.fillStyle = "#6b7280";
+      ctx.font = `${Math.round(state.W * 0.055)}px system-ui, -apple-system, Segoe UI, Roboto, Arial`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("No more cards — reset deck", state.W / 2, state.H / 2);
+      return;
+    }
+
+    if (next) {
+      // subtle scale/offset based on drag progress
+      const p = clamp(Math.abs(state.x) / swipeThreshold(), 0, 1);
+      const underTx = 0;
+      const underTy = lerp(14, 6, p);
+      const underRot = 0;
+      ctx.save();
+      // fake "scale" by drawing smaller via translation? keep simple: tiny offset only
+      ctx.restore();
+      drawCard(next, underTx, underTy, underRot, false);
+    }
+
+    drawCard(top, state.x, state.y, state.rot, true);
+  }
+
+  // ---------- Interaction ----------
+  function setTransformFromDrag(dx, dy) {
+    state.x = dx;
+    state.y = dy * 0.35; // damp vertical
+    // rotate proportional to horizontal drag
+    state.rot = (dx / state.W) * 0.35; // radians
+  }
+
+  function resetTransform() {
+    state.x = 0;
+    state.y = 0;
+    state.rot = 0;
+  }
+
+  function logAction(text) {
+    document.getElementById("log").textContent = text;
+  }
+
+  function popCard(direction) {
+    const card = deck.shift();
+    if (!card) return;
+    logAction(`${direction.toUpperCase()}: ${card.text}`);
+  }
+
+  function animateTo(targetX, targetY, targetRot, done) {
+    state.animating = true;
+    const start = { x: state.x, y: state.y, r: state.rot };
+    const duration = 220;
+    const t0 = performance.now();
+
+    function step(t) {
+      const p = clamp((t - t0) / duration, 0, 1);
+      // easeOutCubic
+      const e = 1 - Math.pow(1 - p, 3);
+
+      state.x = lerp(start.x, targetX, e);
+      state.y = lerp(start.y, targetY, e);
+      state.rot = lerp(start.r, targetRot, e);
+      render();
+
+      if (p < 1) {
+        requestAnimationFrame(step);
+      } else {
+        state.animating = false;
+        done && done();
+        render();
+      }
+    }
+    requestAnimationFrame(step);
+  }
+
+  function completeSwipeIfNeeded() {
+    const th = swipeThreshold();
+    const dx = state.x;
+
+    if (Math.abs(dx) >= th) {
+      const dir = dx > 0 ? "like" : "nope";
+      const offX = dx > 0 ? state.W * 1.2 : -state.W * 1.2;
+      const offRot = dx > 0 ? 0.55 : -0.55;
+
+      animateTo(offX, state.y, offRot, () => {
+        popCard(dir);
+        resetTransform();
+      });
+    } else {
+      // spring back
+      animateTo(0, 0, 0);
+    }
+  }
+
+  // Pointer Events unify mouse + touch + pen
+  canvas.addEventListener("pointerdown", (e) => {
+    if (state.animating) return;
+    if (!deck[0]) return;
+
+    state.dragging = true;
+    state.pointerId = e.pointerId;
+    canvas.setPointerCapture(e.pointerId);
+    state.startX = e.clientX;
+    state.startY = e.clientY;
+  });
+
+  canvas.addEventListener("pointermove", (e) => {
+    if (!state.dragging || state.animating) return;
+    if (e.pointerId !== state.pointerId) return;
+
+    const dx = (e.clientX - state.startX) * (window.devicePixelRatio || 1);
+    const dy = (e.clientY - state.startY) * (window.devicePixelRatio || 1);
+    setTransformFromDrag(dx, dy);
+    render();
+  });
+
+  function endPointer(e) {
+    if (!state.dragging) return;
+    if (e.pointerId !== state.pointerId) return;
+
+    state.dragging = false;
+    state.pointerId = null;
+    completeSwipeIfNeeded();
+  }
+
+  canvas.addEventListener("pointerup", endPointer);
+  canvas.addEventListener("pointercancel", endPointer);
+  canvas.addEventListener("lostpointercapture", () => {
+    if (state.dragging) {
+      state.dragging = false;
+      state.pointerId = null;
+      completeSwipeIfNeeded();
+    }
+  });
+
+  // Buttons (desktop-friendly)
+  document.getElementById("btnLike").addEventListener("click", () => {
+    if (state.animating || !deck[0]) return;
+    animateTo(state.W * 1.2, 0, 0.55, () => {
+      popCard("like");
+      resetTransform();
+    });
+  });
+
+  document.getElementById("btnNope").addEventListener("click", () => {
+    if (state.animating || !deck[0]) return;
+    animateTo(-state.W * 1.2, 0, -0.55, () => {
+      popCard("nope");
+      resetTransform();
+    });
+  });
+
+  document.getElementById("btnReset").addEventListener("click", () => {
+    buildDeck(20);
+    resetTransform();
+    logAction("—");
+    render();
+  });
+
+  // Keyboard support (optional)
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowRight") document.getElementById("btnLike").click();
+    if (e.key === "ArrowLeft") document.getElementById("btnNope").click();
+  });
+
+  // Init
+  buildDeck(20);
+  render();
+  window.addEventListener("resize", render);
+})();
+</script>
+</body>
+</html>
