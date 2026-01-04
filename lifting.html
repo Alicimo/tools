@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Tactical Barbell - Operator (3-Week Wave)</title>
+
+  <!-- Bootstrap 5 (no React) -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <style>
+    .mono { font-variant-numeric: tabular-nums; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    .small-note { font-size: 0.9rem; color: #6c757d; }
+    .sticky-top-lite { position: sticky; top: 0; z-index: 1020; background: white; }
+    .table td, .table th { vertical-align: middle; }
+  </style>
+</head>
+
+<body class="bg-light">
+  <div class="container py-4">
+
+    <header class="mb-4">
+      <h1 class="h3 mb-1">Tactical Barbell – Operator (3-Week Wave)</h1>
+      <div class="small-note">
+        This SPA shows the same main lifts each session (Mon/Wed/Fri) using a 3-week wave:
+        <span class="mono">W1 5×5 @70%</span>,
+        <span class="mono">W2 5×3 @80%</span>,
+        <span class="mono">W3 5×1–2 @90%</span>.
+        Adjust reference values below to recalc weights instantly.
+      </div>
+    </header>
+
+    <!-- SETTINGS / INPUTS -->
+    <div class="card shadow-sm mb-4 sticky-top-lite">
+      <div class="card-body">
+        <div class="row g-3 align-items-end">
+          <div class="col-12 col-lg-3">
+            <label class="form-label">Squat 1RM (kg)</label>
+            <input id="rmSquat" type="number" class="form-control" min="1" step="0.5" value="100">
+          </div>
+          <div class="col-12 col-lg-3">
+            <label class="form-label">Bench 1RM (kg)</label>
+            <input id="rmBench" type="number" class="form-control" min="1" step="0.5" value="75">
+          </div>
+          <div class="col-12 col-lg-3">
+            <label class="form-label">Pull-up max reps</label>
+            <input id="maxPullupReps" type="number" class="form-control" min="1" step="1" value="9">
+          </div>
+          <div class="col-12 col-lg-3">
+            <label class="form-label">Rounding (kg)</label>
+            <select id="rounding" class="form-select">
+              <option value="0.5">0.5 kg</option>
+              <option value="1">1 kg</option>
+              <option value="2.5" selected>2.5 kg (typical plates)</option>
+              <option value="5">5 kg</option>
+              <option value="0">No rounding</option>
+            </select>
+          </div>
+
+          <div class="col-12">
+            <div class="d-flex flex-wrap gap-2 mt-2">
+              <button id="btnReset" class="btn btn-outline-secondary btn-sm">Reset to defaults</button>
+              <button id="btnSave" class="btn btn-primary btn-sm">Save values (local)</button>
+              <button id="btnLoad" class="btn btn-outline-primary btn-sm">Load saved</button>
+              <button id="btnClear" class="btn btn-outline-danger btn-sm">Clear saved</button>
+            </div>
+            <div class="small-note mt-2">
+              Pull-ups are shown as bodyweight sets/reps. A simple guideline is used for rep targets each week (see notes below).
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TABS -->
+    <ul class="nav nav-tabs" id="weekTabs" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="week1-tab" data-bs-toggle="tab" data-bs-target="#week1" type="button" role="tab">
+          Week 1
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="week2-tab" data-bs-toggle="tab" data-bs-target="#week2" type="button" role="tab">
+          Week 2
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="week3-tab" data-bs-toggle="tab" data-bs-target="#week3" type="button" role="tab">
+          Week 3
+        </button>
+      </li>
+    </ul>
+
+    <div class="tab-content border border-top-0 bg-white p-3 shadow-sm" id="weekTabContent">
+      <!-- Week 1 -->
+      <div class="tab-pane fade show active" id="week1" role="tabpanel" aria-labelledby="week1-tab">
+        <h2 class="h5 mb-3">Week 1 — <span class="mono">5×5 @70%</span></h2>
+        <div id="week1Table"></div>
+      </div>
+
+      <!-- Week 2 -->
+      <div class="tab-pane fade" id="week2" role="tabpanel" aria-labelledby="week2-tab">
+        <h2 class="h5 mb-3">Week 2 — <span class="mono">5×3 @80%</span></h2>
+        <div id="week2Table"></div>
+      </div>
+
+      <!-- Week 3 -->
+      <div class="tab-pane fade" id="week3" role="tabpanel" aria-labelledby="week3-tab">
+        <h2 class="h5 mb-3">Week 3 — <span class="mono">5×1–2 @90%</span></h2>
+        <div id="week3Table"></div>
+      </div>
+    </div>
+
+    <footer class="mt-4 small-note">
+      <div class="mb-2">
+        <strong>Notes</strong>
+        <ul class="mb-0">
+          <li>
+            Operator strength sessions are typically done <strong>3×/week</strong> (e.g., Mon/Wed/Fri) using the same exercises.
+            This page shows the prescription per session; repeat it across the 3 sessions in that week.
+          </li>
+          <li>
+            Pull-ups: since you gave max reps (9), this app sets weekly rep targets as a percentage of that max:
+            <span class="mono">W1 5×~60%</span>, <span class="mono">W2 5×~45%</span>, <span class="mono">W3 5×~25%</span>
+            (rounded to whole reps, with minimum 1). If you prefer weighted pull-ups, you can adapt the JS to treat it like a 1RM lift.
+          </li>
+          <li>
+            This is a simple planner, not medical advice. If pain/injury risk exists, adjust accordingly.
+          </li>
+        </ul>
+      </div>
+    </footer>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+  <script>
+    // ----------------------------
+    // CONFIG (easy to alter)
+    // ----------------------------
+    const DEFAULTS = {
+      rmSquat: 100,
+      rmBench: 75,
+      maxPullupReps: 9,
+      rounding: 2.5
+    };
+
+    // Operator 3-week wave definition
+    // You can add/remove exercises here.
+    const PROGRAM = [
+      { key: "squat", name: "Back Squat", type: "1rm", rmInputId: "rmSquat" },
+      { key: "bench", name: "Bench Press", type: "1rm", rmInputId: "rmBench" },
+      { key: "pullup", name: "Pull-up (Bodyweight)", type: "bw_reps", repsInputId: "maxPullupReps" }
+    ];
+
+    // Week prescriptions (strength)
+    // For 1RM lifts: percent + sets/reps.
+    // For BW pull-ups: sets + repTargetPct of max reps.
+    const WEEKS = [
+      { id: 1, name: "Week 1", percent: 0.70, sets: 5, reps: "5", pullupRepTargetPct: 0.60 },
+      { id: 2, name: "Week 2", percent: 0.80, sets: 5, reps: "3", pullupRepTargetPct: 0.45 },
+      { id: 3, name: "Week 3", percent: 0.90, sets: 5, reps: "1–2", pullupRepTargetPct: 0.25 }
+    ];
+
+    const STORAGE_KEY = "tb_operator_settings_v1";
+
+    // ----------------------------
+    // Helpers
+    // ----------------------------
+    function roundToStep(value, step) {
+      if (!step || step === 0) return value;
+      return Math.round(value / step) * step;
+    }
+
+    function fmtKg(x) {
+      // avoid trailing .0 if integer
+      const rounded = Math.round(x * 10) / 10;
+      return (Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1)) + " kg";
+    }
+
+    function safeInt(x, fallback) {
+      const n = parseInt(x, 10);
+      return Number.isFinite(n) ? n : fallback;
+    }
+
+    function safeFloat(x, fallback) {
+      const n = parseFloat(x);
+      return Number.isFinite(n) ? n : fallback;
+    }
+
+    function getSettingsFromInputs() {
+      return {
+        rmSquat: safeFloat(document.getElementById("rmSquat").value, DEFAULTS.rmSquat),
+        rmBench: safeFloat(document.getElementById("rmBench").value, DEFAULTS.rmBench),
+        maxPullupReps: safeInt(document.getElementById("maxPullupReps").value, DEFAULTS.maxPullupReps),
+        rounding: safeFloat(document.getElementById("rounding").value, DEFAULTS.rounding)
+      };
+    }
+
+    function setInputsFromSettings(s) {
+      document.getElementById("rmSquat").value = s.rmSquat;
+      document.getElementById("rmBench").value = s.rmBench;
+      document.getElementById("maxPullupReps").value = s.maxPullupReps;
+      document.getElementById("rounding").value = String(s.rounding);
+    }
+
+    // ----------------------------
+    // Rendering
+    // ----------------------------
+    function buildWeekTable(week, settings) {
+      const rows = PROGRAM.map(ex => {
+        if (ex.type === "1rm") {
+          const rm = settings[ex.rmInputId];
+          const raw = rm * week.percent;
+          const w = roundToStep(raw, settings.rounding);
+          return `
+            <tr>
+              <td>${ex.name}</td>
+              <td class="mono text-nowrap">${week.sets}×${week.reps}</td>
+              <td class="mono text-nowrap">${fmtKg(w)} <span class="small-note">(raw: ${fmtKg(raw)})</span></td>
+              <td class="small-note">Repeat this session 3× this week (e.g., Mon/Wed/Fri)</td>
+            </tr>
+          `;
+        }
+
+        if (ex.type === "bw_reps") {
+          const maxReps = settings[ex.repsInputId];
+          const target = Math.max(1, Math.round(maxReps * week.pullupRepTargetPct));
+          return `
+            <tr>
+              <td>${ex.name}</td>
+              <td class="mono text-nowrap">${week.sets}×${target}</td>
+              <td class="mono text-nowrap">Bodyweight</td>
+              <td class="small-note">Target is ~${Math.round(week.pullupRepTargetPct * 100)}% of max (${maxReps})</td>
+            </tr>
+          `;
+        }
+
+        return "";
+      }).join("");
+
+      return `
+        <div class="table-responsive">
+          <table class="table table-striped table-hover align-middle mb-0">
+            <thead>
+              <tr>
+                <th style="width: 35%">Exercise</th>
+                <th style="width: 15%">Sets×Reps</th>
+                <th style="width: 25%">Weight</th>
+                <th style="width: 25%">Notes</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function renderAll() {
+      const settings = getSettingsFromInputs();
+
+      // basic validation guardrails
+      if (settings.rmSquat <= 0) settings.rmSquat = DEFAULTS.rmSquat;
+      if (settings.rmBench <= 0) settings.rmBench = DEFAULTS.rmBench;
+      if (settings.maxPullupReps <= 0) settings.maxPullupReps = DEFAULTS.maxPullupReps;
+
+      document.getElementById("week1Table").innerHTML = buildWeekTable(WEEKS[0], settings);
+      document.getElementById("week2Table").innerHTML = buildWeekTable(WEEKS[1], settings);
+      document.getElementById("week3Table").innerHTML = buildWeekTable(WEEKS[2], settings);
+    }
+
+    // ----------------------------
+    // Persistence controls
+    // ----------------------------
+    function saveSettings() {
+      const s = getSettingsFromInputs();
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
+    }
+
+    function loadSettings() {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return false;
+      try {
+        const s = JSON.parse(raw);
+        // merge with defaults to be safe
+        setInputsFromSettings({ ...DEFAULTS, ...s });
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
+    function clearSettings() {
+      localStorage.removeItem(STORAGE_KEY);
+    }
+
+    function resetDefaults() {
+      setInputsFromSettings(DEFAULTS);
+    }
+
+    // ----------------------------
+    // Wire up events
+    // ----------------------------
+    ["rmSquat", "rmBench", "maxPullupReps", "rounding"].forEach(id => {
+      document.getElementById(id).addEventListener("input", renderAll);
+      document.getElementById(id).addEventListener("change", renderAll);
+    });
+
+    document.getElementById("btnReset").addEventListener("click", () => {
+      resetDefaults();
+      renderAll();
+    });
+
+    document.getElementById("btnSave").addEventListener("click", () => {
+      saveSettings();
+      renderAll();
+    });
+
+    document.getElementById("btnLoad").addEventListener("click", () => {
+      loadSettings();
+      renderAll();
+    });
+
+    document.getElementById("btnClear").addEventListener("click", () => {
+      clearSettings();
+      renderAll();
+    });
+
+    // Initial load: prefer saved settings, else defaults
+    if (!loadSettings()) resetDefaults();
+    renderAll();
+  </script>
+</body>
+</html>
