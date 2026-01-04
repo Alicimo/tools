@@ -1,0 +1,405 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Calories vs Height & Weight (Contour)</title>
+
+  <!-- Plotly (no React needed) -->
+  <script src="https://cdn.plot.ly/plotly-2.30.0.min.js"></script>
+
+  <style>
+    :root { --bg:#0b0f17; --panel:#121a27; --muted:#9fb0c7; --text:#eaf0ff; --accent:#7aa2ff; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background:var(--bg); color:var(--text); }
+    header { padding:16px 18px; border-bottom:1px solid rgba(255,255,255,.08); display:flex; gap:10px; align-items:center; justify-content:space-between; }
+    header h1 { margin:0; font-size:16px; font-weight:650; letter-spacing:.2px; }
+    header .sub { color:var(--muted); font-size:12px; }
+    .wrap { max-width: 1200px; margin: 0 auto; padding: 16px; }
+    .tabs { display:flex; gap:8px; margin-bottom:12px; }
+    .tabbtn {
+      border:1px solid rgba(255,255,255,.12);
+      background: transparent;
+      color: var(--text);
+      padding: 8px 10px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 13px;
+      opacity: .9;
+    }
+    .tabbtn.active { background: rgba(122,162,255,.18); border-color: rgba(122,162,255,.45); }
+    .grid { display:grid; grid-template-columns: 320px 1fr; gap:12px; align-items:start; }
+    @media (max-width: 920px) { .grid { grid-template-columns: 1fr; } }
+    .panel {
+      background: var(--panel);
+      border:1px solid rgba(255,255,255,.08);
+      border-radius: 14px;
+      padding: 12px;
+    }
+    .panel h2 { margin: 0 0 10px 0; font-size: 13px; color: var(--muted); font-weight: 700; letter-spacing:.2px; }
+    label { display:block; font-size:12px; color: var(--muted); margin: 10px 0 6px; }
+    input, select {
+      width:100%;
+      padding: 10px 10px;
+      border-radius: 10px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(0,0,0,.22);
+      color: var(--text);
+      outline: none;
+    }
+    input:focus, select:focus { border-color: rgba(122,162,255,.65); box-shadow: 0 0 0 3px rgba(122,162,255,.15); }
+    .row2 { display:grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .kpi {
+      margin-top: 12px;
+      padding: 10px;
+      border-radius: 12px;
+      border: 1px dashed rgba(255,255,255,.18);
+      background: rgba(255,255,255,.04);
+    }
+    .kpi .big { font-size: 22px; font-weight: 800; }
+    .kpi .small { color: var(--muted); font-size: 12px; }
+    .hint { margin-top: 10px; font-size: 12px; color: var(--muted); line-height: 1.35; }
+    #plot { width: 100%; height: 640px; }
+    .content { display:none; }
+    .content.active { display:block; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .explain { line-height: 1.55; color: var(--text); }
+    .explain h3 { margin: 14px 0 6px; font-size: 14px; }
+    .explain code { background: rgba(255,255,255,.06); padding: 2px 6px; border-radius: 8px; }
+    .footer-note { margin-top: 10px; color: var(--muted); font-size: 12px; }
+  </style>
+</head>
+
+<body>
+  <header>
+    <div>
+      <h1>Estimated Daily Calories vs Height & Weight</h1>
+      <div class="sub">Contour bands are in 100 kcal/day steps; crosshairs show your input point.</div>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <div class="tabs">
+      <button class="tabbtn active" data-tab="tab-plot">Plot</button>
+      <button class="tabbtn" data-tab="tab-explain">Explanation & Sources</button>
+    </div>
+
+    <section id="tab-plot" class="content active">
+      <div class="grid">
+        <div class="panel">
+          <h2>Inputs</h2>
+
+          <div class="row2">
+            <div>
+              <label for="heightCm">Height (cm)</label>
+              <input id="heightCm" type="number" min="120" max="230" step="1" value="178" />
+            </div>
+            <div>
+              <label for="weightKg">Weight (kg)</label>
+              <input id="weightKg" type="number" min="30" max="220" step="1" value="75" />
+            </div>
+          </div>
+
+          <div class="row2">
+            <div>
+              <label for="ageY">Age (years)</label>
+              <input id="ageY" type="number" min="10" max="100" step="1" value="35" />
+            </div>
+            <div>
+              <label for="sex">Sex (for equation constant)</label>
+              <select id="sex">
+                <option value="male" selected>Male (+5)</option>
+                <option value="female">Female (−161)</option>
+              </select>
+            </div>
+          </div>
+
+          <label for="activity">Activity multiplier (TDEE = BMR × multiplier)</label>
+          <select id="activity">
+            <option value="1.2" selected>Sedentary (×1.2)</option>
+            <option value="1.375">Lightly active (×1.375)</option>
+            <option value="1.55">Moderately active (×1.55)</option>
+            <option value="1.725">Very active (×1.725)</option>
+            <option value="1.9">Extra active (×1.9)</option>
+          </select>
+
+          <div class="kpi" id="kpiBox">
+            <div class="big" id="tdeeOut">—</div>
+            <div class="small" id="bmrOut">—</div>
+          </div>
+
+          <div class="hint">
+            • X-axis = weight (kg), Y-axis = height (cm).<br/>
+            • The contour surface updates when you change age/sex/activity.<br/>
+            • Crosshairs update when you change height/weight.
+          </div>
+        </div>
+
+        <div class="panel">
+          <h2>Contour plot</h2>
+          <div id="plot"></div>
+          <div class="footer-note">
+            Note: This is an estimate. Real needs vary (body composition, thermic effect of food, measurement error, etc.).
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="tab-explain" class="content">
+      <div class="panel explain">
+        <h2>Explanation & Sources</h2>
+
+        <h3>What the contour plot represents</h3>
+        <p>
+          The plot shows an <b>estimated maintenance calorie intake</b> (Total Daily Energy Expenditure, TDEE) across
+          different combinations of <b>height</b> and <b>weight</b>, holding your chosen <b>age</b>, <b>sex</b>,
+          and <b>activity multiplier</b> fixed.
+        </p>
+
+        <h3>Step 1 — Estimate basal metabolic rate (BMR)</h3>
+        <p>
+          This page uses the <b>Mifflin–St Jeor</b> equation (kcal/day):
+        </p>
+        <p>
+          <code>BMR = 10·weight_kg + 6.25·height_cm − 5·age_years + s</code>
+        </p>
+        <p>
+          where <code>s = +5</code> for males and <code>s = −161</code> for females.
+        </p>
+
+        <h3>Step 2 — Convert BMR to daily needs (TDEE)</h3>
+        <p>
+          A common practical approach is:
+          <code>TDEE = BMR × activity_multiplier</code>
+        </p>
+        <p>
+          This UI offers the widely used multipliers:
+          sedentary (1.2), lightly active (1.375), moderately active (1.55), very active (1.725), extra active (1.9).
+        </p>
+
+        <h3>Interpretation</h3>
+        <ul>
+          <li>If you eat roughly at TDEE, weight tends to be stable over time (on average).</li>
+          <li>For weight loss/gain, people often adjust intake below/above maintenance, but that’s outside this plot.</li>
+          <li>Age changes the surface by a constant slope term (−5 kcal/day per year, before the activity multiplier).</li>
+        </ul>
+
+        <h3>Sources</h3>
+        <ul>
+          <li>
+            Original publication introducing Mifflin–St Jeor (PubMed):<br/>
+            <a href="https://pubmed.ncbi.nlm.nih.gov/2305711/" target="_blank" rel="noreferrer">Mifflin et al., 1990 — “A new predictive equation for resting energy expenditure…”</a>
+          </li>
+          <li>
+            Clinical reference summarizing the equation and common activity multipliers:<br/>
+            <a href="https://reference.medscape.com/calculator/846/mifflin-st-jeor-equation" target="_blank" rel="noreferrer">Medscape — Mifflin–St Jeor Equation</a>
+          </li>
+          <li>
+            Background on Physical Activity Level (PAL) categories used in dietary reference standards (ranges and definitions):<br/>
+            <a href="https://www.canada.ca/content/dam/hc-sc/migration/hc-sc/fn-an/alt_formats/hpfb-dgpsa/pdf/nutrition/dri_tables-eng.pdf" target="_blank" rel="noreferrer">Health Canada — DRI tables (PAL definitions)</a><br/>
+            <a href="https://www.ncbi.nlm.nih.gov/books/NBK591020/" target="_blank" rel="noreferrer">NCBI — Applications of the Dietary Reference Intakes for Energy (PAL discussion)</a>
+          </li>
+          <li>
+            (Optional context) Revised Harris–Benedict reevaluation paper (not used in the calculation here):<br/>
+            <a href="https://pubmed.ncbi.nlm.nih.gov/6741850/" target="_blank" rel="noreferrer">Roza &amp; Shizgal, 1984 — “The Harris Benedict equation reevaluated…”</a>
+          </li>
+        </ul>
+
+        <div class="footer-note">
+          If you want, I can add a toggle to switch between Mifflin–St Jeor and Revised Harris–Benedict, or add an
+          “energy deficit/surplus” slider and show its effect as separate contours.
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    // --- Core math (Mifflin–St Jeor) ---
+    function bmrMifflinStJeor({weightKg, heightCm, ageY, sex}) {
+      const s = (sex === "male") ? 5 : -161;
+      return (10 * weightKg) + (6.25 * heightCm) - (5 * ageY) + s;
+    }
+    function tdeeFromBmr(bmr, activity) { return bmr * activity; }
+
+    // --- Plot grid configuration ---
+    // Keep this reasonably sized so it runs smoothly in-browser.
+    const GRID = {
+      wMin: 40,  wMax: 140, wStep: 1,   // kg
+      hMin: 140, hMax: 210, hStep: 1    // cm
+    };
+
+    function makeRange(min, max, step) {
+      const out = [];
+      for (let v = min; v <= max + 1e-9; v += step) out.push(+v.toFixed(6));
+      return out;
+    }
+
+    const weights = makeRange(GRID.wMin, GRID.wMax, GRID.wStep); // x
+    const heights = makeRange(GRID.hMin, GRID.hMax, GRID.hStep); // y
+
+    function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+    // --- Build contour surface Z (TDEE) for given age/sex/activity ---
+    function computeZ({ageY, sex, activity}) {
+      // Plotly contour expects z as 2D array: rows correspond to y (heights), columns to x (weights)
+      const z = new Array(heights.length);
+      for (let i = 0; i < heights.length; i++) {
+        const h = heights[i];
+        const row = new Array(weights.length);
+        for (let j = 0; j < weights.length; j++) {
+          const w = weights[j];
+          const bmr = bmrMifflinStJeor({weightKg: w, heightCm: h, ageY, sex});
+          row[j] = tdeeFromBmr(bmr, activity);
+        }
+        z[i] = row;
+      }
+      return z;
+    }
+
+    // --- UI state ---
+    const els = {
+      heightCm: document.getElementById("heightCm"),
+      weightKg: document.getElementById("weightKg"),
+      ageY: document.getElementById("ageY"),
+      sex: document.getElementById("sex"),
+      activity: document.getElementById("activity"),
+      tdeeOut: document.getElementById("tdeeOut"),
+      bmrOut: document.getElementById("bmrOut"),
+      plot: document.getElementById("plot"),
+    };
+
+    function readInputs() {
+      const heightCm = clamp(Number(els.heightCm.value || 0), 100, 260);
+      const weightKg = clamp(Number(els.weightKg.value || 0), 20, 300);
+      const ageY = clamp(Number(els.ageY.value || 0), 5, 120);
+      const sex = els.sex.value;
+      const activity = Number(els.activity.value);
+      return { heightCm, weightKg, ageY, sex, activity };
+    }
+
+    function updateKpi() {
+      const { heightCm, weightKg, ageY, sex, activity } = readInputs();
+      const bmr = bmrMifflinStJeor({weightKg, heightCm, ageY, sex});
+      const tdee = tdeeFromBmr(bmr, activity);
+
+      els.tdeeOut.textContent = `${Math.round(tdee).toLocaleString()} kcal/day`;
+      els.bmrOut.textContent = `BMR: ${Math.round(bmr).toLocaleString()} kcal/day  •  Activity: ×${activity}`;
+    }
+
+    // --- Plotly helpers (crosshairs + point) ---
+    function makeCrosshairShapes(xWeight, yHeight) {
+      const x = clamp(xWeight, GRID.wMin, GRID.wMax);
+      const y = clamp(yHeight, GRID.hMin, GRID.hMax);
+
+      return [
+        // vertical line at selected weight
+        {
+          type: "line",
+          xref: "x", yref: "y",
+          x0: x, x1: x,
+          y0: GRID.hMin, y1: GRID.hMax,
+          line: { width: 2, dash: "dot" }
+        },
+        // horizontal line at selected height
+        {
+          type: "line",
+          xref: "x", yref: "y",
+          x0: GRID.wMin, x1: GRID.wMax,
+          y0: y, y1: y,
+          line: { width: 2, dash: "dot" }
+        }
+      ];
+    }
+
+    function initPlot() {
+      const { heightCm, weightKg, ageY, sex, activity } = readInputs();
+      const z = computeZ({ageY, sex, activity});
+
+      const contour = {
+        type: "contour",
+        x: weights,
+        y: heights,
+        z: z,
+        contours: {
+          coloring: "heatmap",
+          start: 1000,
+          end: 5000,
+          size: 100   // <- 100 kcal/day bands
+        },
+        hovertemplate:
+          "Weight: %{x} kg<br>Height: %{y} cm<br>TDEE: %{z:.0f} kcal/day<extra></extra>",
+        colorbar: { title: "kcal/day" }
+      };
+
+      const point = {
+        type: "scatter",
+        mode: "markers",
+        x: [clamp(weightKg, GRID.wMin, GRID.wMax)],
+        y: [clamp(heightCm, GRID.hMin, GRID.hMax)],
+        marker: { size: 11, line: { width: 2 } },
+        hovertemplate: "Your input<br>Weight: %{x} kg<br>Height: %{y} cm<extra></extra>",
+        name: "You"
+      };
+
+      const layout = {
+        margin: { l: 60, r: 30, t: 10, b: 55 },
+        xaxis: { title: "Weight (kg)", range: [GRID.wMin, GRID.wMax], zeroline: false },
+        yaxis: { title: "Height (cm)", range: [GRID.hMin, GRID.hMax], zeroline: false },
+        paper_bgcolor: "rgba(0,0,0,0)",
+        plot_bgcolor: "rgba(0,0,0,0)",
+        shapes: makeCrosshairShapes(weightKg, heightCm),
+        showlegend: false
+      };
+
+      Plotly.newPlot(els.plot, [contour, point], layout, { responsive: true });
+    }
+
+    // Recompute surface (age/sex/activity) and refresh plot
+    function refreshSurface() {
+      const { heightCm, weightKg, ageY, sex, activity } = readInputs();
+      const z = computeZ({ageY, sex, activity});
+
+      Plotly.restyle(els.plot, { z: [z] }, [0]); // trace 0 is contour
+      refreshCrosshairsAndPoint();
+    }
+
+    // Only crosshairs/point move (height/weight)
+    function refreshCrosshairsAndPoint() {
+      const { heightCm, weightKg } = readInputs();
+      const x = clamp(weightKg, GRID.wMin, GRID.wMax);
+      const y = clamp(heightCm, GRID.hMin, GRID.hMax);
+
+      Plotly.relayout(els.plot, { shapes: makeCrosshairShapes(x, y) });
+      Plotly.restyle(els.plot, { x: [[x]], y: [[y]] }, [1]); // trace 1 is point
+    }
+
+    // --- Tabs ---
+    document.querySelectorAll(".tabbtn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".tabbtn").forEach(b => b.classList.remove("active"));
+        document.querySelectorAll(".content").forEach(c => c.classList.remove("active"));
+        btn.classList.add("active");
+        document.getElementById(btn.dataset.tab).classList.add("active");
+        // Resize plot when returning to it (helps on some browsers)
+        if (btn.dataset.tab === "tab-plot") setTimeout(() => Plotly.Plots.resize(els.plot), 0);
+      });
+    });
+
+    // --- Wire up events ---
+    function onHeightWeight() { updateKpi(); refreshCrosshairsAndPoint(); }
+    function onModelParams() { updateKpi(); refreshSurface(); }
+
+    els.heightCm.addEventListener("input", onHeightWeight);
+    els.weightKg.addEventListener("input", onHeightWeight);
+    els.ageY.addEventListener("input", onModelParams);
+    els.sex.addEventListener("change", onModelParams);
+    els.activity.addEventListener("change", onModelParams);
+
+    // --- Boot ---
+    updateKpi();
+    initPlot();
+  </script>
+</body>
+</html>
