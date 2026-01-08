@@ -74,11 +74,11 @@
       <div class="d-flex align-items-center justify-content-between gap-3">
         <div class="d-flex align-items-center gap-3">
           <div class="btn-group btn-group-sm" role="group" aria-label="Control scheme">
-            <input type="radio" class="btn-check" name="controls" id="controls-arrows" autocomplete="off" checked>
-            <label class="btn btn-outline-light" for="controls-arrows">Arrows</label>
-
-            <input type="radio" class="btn-check" name="controls" id="controls-vi" autocomplete="off">
+            <input type="radio" class="btn-check" name="controls" id="controls-vi" autocomplete="off" checked>
             <label class="btn btn-outline-light" for="controls-vi">Vim (h/j/k/l)</label>
+
+            <input type="radio" class="btn-check" name="controls" id="controls-arrows" autocomplete="off">
+            <label class="btn btn-outline-light" for="controls-arrows">Arrows</label>
           </div>
 
           <span class="badge text-bg-dark border border-light-subtle">
@@ -101,13 +101,13 @@
     <div class="hint mt-3 text-center text-light">
       <div class="small">
         Movement:
-        <span class="controls-hint" data-mode="arrows">
-          <kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd>
-        </span>
-        <span class="controls-hint d-none" data-mode="vi">
+        <span class="controls-hint" data-mode="vi">
           <kbd>k</kbd> up, <kbd>j</kbd> down, <kbd>h</kbd> left, <kbd>l</kbd> right
         </span>
-        · No wrapping (walls kill)
+        <span class="controls-hint d-none" data-mode="arrows">
+          <kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd>
+        </span>
+        · Wrapping enabled
         · Speed increases with score
       </div>
     </div>
@@ -137,6 +137,30 @@
     </div>
   </div>
 
+  <!-- Win Modal -->
+  <div class="modal fade" id="winModal" tabindex="-1" aria-labelledby="winTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="winTitle">You Win!</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p class="mb-2">Final score: <span class="fw-semibold" id="winScore">0</span></p>
+          <p class="mb-0">High score (this session): <span class="fw-semibold" id="winHighScore">0</span></p>
+          <hr class="border-light-subtle">
+          <p class="small mb-0 opacity-75">
+            Press <kbd>Space</kbd> or <kbd>Enter</kbd> to start a new run.
+          </p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Close</button>
+          <button type="button" class="btn btn-primary" id="winPlayAgainBtn">Play again</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Bootstrap JS (CDN) -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
@@ -150,9 +174,9 @@
       const CANVAS_H = ROWS * CELL;
 
       // Speed curve: interval decreases as score rises
-      const BASE_INTERVAL_MS = 140;      // starting speed
+      const BASE_INTERVAL_MS = 300;      // starting speed
       const MIN_INTERVAL_MS  = 55;       // cap (fastest)
-      const SPEEDUP_PER_FOOD = 4;        // ms faster per point
+      const SPEEDUP_PER_FOOD = 10;        // ms faster per point
 
       const canvas = document.getElementById('game');
       const ctx = canvas.getContext('2d');
@@ -166,6 +190,9 @@
       const finalScoreEl = document.getElementById('finalScore');
       const finalHighScoreEl = document.getElementById('finalHighScore');
       const playAgainBtn = document.getElementById('playAgainBtn');
+      const winScoreEl = document.getElementById('winScore');
+      const winHighScoreEl = document.getElementById('winHighScore');
+      const winPlayAgainBtn = document.getElementById('winPlayAgainBtn');
 
       const controlsArrows = document.getElementById('controls-arrows');
       const controlsVi = document.getElementById('controls-vi');
@@ -175,9 +202,11 @@
       // Bootstrap modal instance
       const gameOverModalEl = document.getElementById('gameOverModal');
       const gameOverModal = new bootstrap.Modal(gameOverModalEl, { backdrop: 'static', keyboard: true });
+      const winModalEl = document.getElementById('winModal');
+      const winModal = new bootstrap.Modal(winModalEl, { backdrop: 'static', keyboard: true });
 
       // ====== State ======
-      let controlMode = 'arrows'; // 'arrows' | 'vi'
+      let controlMode = 'vi'; // 'arrows' | 'vi'
       let running = false;
       let gameOver = false;
 
@@ -249,7 +278,7 @@
           const y = randInt(0, ROWS - 1);
           if (!snakeOccupies(x, y)) {
             food = { x, y };
-            return;
+            return true;
           }
         }
         // Fallback scan
@@ -257,10 +286,11 @@
           for (let x = 0; x < COLS; x++) {
             if (!snakeOccupies(x, y)) {
               food = { x, y };
-              return;
+              return true;
             }
           }
         }
+        return false;
       }
 
       function resetGame() {
@@ -288,6 +318,7 @@
       function startGame() {
         // If modal is open, close it.
         try { gameOverModal.hide(); } catch (_) {}
+        try { winModal.hide(); } catch (_) {}
 
         resetGame();
         running = true;
@@ -305,6 +336,19 @@
         finalScoreEl.textContent = String(score);
         finalHighScoreEl.textContent = String(highScore);
         gameOverModal.show();
+      }
+
+      function winGame() {
+        running = false;
+        gameOver = true;
+        clearTimer();
+
+        if (score > highScore) highScore = score;
+        updateScoreUI();
+
+        winScoreEl.textContent = String(score);
+        winHighScoreEl.textContent = String(highScore);
+        winModal.show();
       }
 
       function tryQueueDirection(next) {
@@ -353,6 +397,7 @@
       });
 
       playAgainBtn.addEventListener('click', () => startGame());
+      winPlayAgainBtn.addEventListener('click', () => startGame());
 
       // ====== Game Loop ======
       function tick() {
@@ -366,11 +411,11 @@
         const head = snake[0];
         const nextHead = { x: head.x + dir.x, y: head.y + dir.y };
 
-        // Wall collision: no wrapping
-        if (nextHead.x < 0 || nextHead.x >= COLS || nextHead.y < 0 || nextHead.y >= ROWS) {
-          endGame();
-          return;
-        }
+        // Wrap around edges
+        if (nextHead.x < 0) nextHead.x = COLS - 1;
+        else if (nextHead.x >= COLS) nextHead.x = 0;
+        if (nextHead.y < 0) nextHead.y = ROWS - 1;
+        else if (nextHead.y >= ROWS) nextHead.y = 0;
 
         // Self collision: note that moving into the last tail cell is OK IF tail moves away this tick.
         // We'll compute the new body accordingly.
@@ -396,8 +441,12 @@
         if (willEat) {
           score += 1;
           if (score > highScore) highScore = score;
-          placeFood();
+          const placed = placeFood();
           updateScoreUI();
+          if (!placed) {
+            winGame();
+            return;
+          }
         }
 
         draw(false);
@@ -494,7 +543,7 @@
       }
 
       // ====== Init ======
-      setControlMode('arrows');
+      setControlMode('vi');
       resetGame();
 
       // Ensure the overlay is visible on first load
