@@ -1,0 +1,510 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Snake (Vim / Arrows) — Single-file SPA</title>
+
+  <!-- Bootstrap (CDN) -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <style>
+    :root{
+      --cell: 18px; /* “old Nokia-ish” vibe */
+      --cols: 20;
+      --rows: 16;
+    }
+    body {
+      background: #0b0f14;
+      color: #e9eef5;
+      user-select: none;
+    }
+
+    .hud {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: rgba(11,15,20,0.85);
+      backdrop-filter: blur(6px);
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .game-wrap {
+      display: grid;
+      place-items: center;
+      padding: 18px 12px 40px;
+    }
+
+    /* Crisp, retro-ish canvas */
+    canvas {
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      background: #0e1520;
+      border: 2px solid rgba(255,255,255,0.12);
+      border-radius: 10px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+
+    .hint {
+      max-width: 620px;
+      opacity: 0.9;
+    }
+    kbd {
+      background: rgba(255,255,255,0.10);
+      border: 1px solid rgba(255,255,255,0.12);
+      color: #e9eef5;
+    }
+
+    /* Make the modal a bit “gamey” */
+    .modal-content {
+      background: #0f1722;
+      color: #e9eef5;
+      border: 1px solid rgba(255,255,255,0.12);
+    }
+    .modal-header, .modal-footer {
+      border-color: rgba(255,255,255,0.10);
+    }
+  </style>
+</head>
+
+<body>
+  <!-- HUD -->
+  <div class="hud">
+    <div class="container-fluid py-2">
+      <div class="d-flex align-items-center justify-content-between gap-3">
+        <div class="d-flex align-items-center gap-3">
+          <div class="btn-group btn-group-sm" role="group" aria-label="Control scheme">
+            <input type="radio" class="btn-check" name="controls" id="controls-arrows" autocomplete="off" checked>
+            <label class="btn btn-outline-light" for="controls-arrows">Arrows</label>
+
+            <input type="radio" class="btn-check" name="controls" id="controls-vi" autocomplete="off">
+            <label class="btn btn-outline-light" for="controls-vi">Vim (h/j/k/l)</label>
+          </div>
+
+          <span class="badge text-bg-dark border border-light-subtle">
+            Press <kbd>Space</kbd> or <kbd>Enter</kbd> to Start
+          </span>
+        </div>
+
+        <div class="d-flex align-items-center gap-2">
+          <span class="badge text-bg-primary fs-6">Score: <span id="score">0</span></span>
+          <span class="badge text-bg-secondary fs-6">High: <span id="highScore">0</span></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Game -->
+  <div class="game-wrap">
+    <canvas id="game" width="360" height="288" aria-label="Snake game canvas"></canvas>
+
+    <div class="hint mt-3 text-center text-light">
+      <div class="small">
+        Movement:
+        <span class="controls-hint" data-mode="arrows">
+          <kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd>
+        </span>
+        <span class="controls-hint d-none" data-mode="vi">
+          <kbd>k</kbd> up, <kbd>j</kbd> down, <kbd>h</kbd> left, <kbd>l</kbd> right
+        </span>
+        · No wrapping (walls kill)
+        · Speed increases with score
+      </div>
+    </div>
+  </div>
+
+  <!-- Game Over Modal -->
+  <div class="modal fade" id="gameOverModal" tabindex="-1" aria-labelledby="gameOverTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="gameOverTitle">Game Over</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p class="mb-2">Your score: <span class="fw-semibold" id="finalScore">0</span></p>
+          <p class="mb-0">High score (this session): <span class="fw-semibold" id="finalHighScore">0</span></p>
+          <hr class="border-light-subtle">
+          <p class="small mb-0 opacity-75">
+            Press <kbd>Space</kbd> or <kbd>Enter</kbd> to start a new run.
+          </p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Close</button>
+          <button type="button" class="btn btn-primary" id="playAgainBtn">Play again</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bootstrap JS (CDN) -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+  <script>
+    (() => {
+      // ====== Config (“old Nokia-ish”) ======
+      const COLS = 20;
+      const ROWS = 16;
+      const CELL = 18; // px
+      const CANVAS_W = COLS * CELL;
+      const CANVAS_H = ROWS * CELL;
+
+      // Speed curve: interval decreases as score rises
+      const BASE_INTERVAL_MS = 140;      // starting speed
+      const MIN_INTERVAL_MS  = 55;       // cap (fastest)
+      const SPEEDUP_PER_FOOD = 4;        // ms faster per point
+
+      const canvas = document.getElementById('game');
+      const ctx = canvas.getContext('2d');
+
+      canvas.width = CANVAS_W;
+      canvas.height = CANVAS_H;
+
+      // ====== UI Elements ======
+      const scoreEl = document.getElementById('score');
+      const highScoreEl = document.getElementById('highScore');
+      const finalScoreEl = document.getElementById('finalScore');
+      const finalHighScoreEl = document.getElementById('finalHighScore');
+      const playAgainBtn = document.getElementById('playAgainBtn');
+
+      const controlsArrows = document.getElementById('controls-arrows');
+      const controlsVi = document.getElementById('controls-vi');
+      const hintArrows = document.querySelector('.controls-hint[data-mode="arrows"]');
+      const hintVi = document.querySelector('.controls-hint[data-mode="vi"]');
+
+      // Bootstrap modal instance
+      const gameOverModalEl = document.getElementById('gameOverModal');
+      const gameOverModal = new bootstrap.Modal(gameOverModalEl, { backdrop: 'static', keyboard: true });
+
+      // ====== State ======
+      let controlMode = 'arrows'; // 'arrows' | 'vi'
+      let running = false;
+      let gameOver = false;
+
+      let score = 0;
+      let highScore = 0; // session only (in-memory)
+
+      // Snake is array of {x,y}, head at [0]
+      let snake = [];
+      let dir = { x: 1, y: 0 };
+      let pendingDir = null;
+
+      let food = { x: 0, y: 0 };
+
+      let tickTimer = null;
+
+      // ====== Helpers ======
+      const randInt = (min, maxInclusive) => Math.floor(Math.random() * (maxInclusive - min + 1)) + min;
+
+      function setControlMode(mode) {
+        controlMode = mode;
+        if (mode === 'arrows') {
+          hintArrows.classList.remove('d-none');
+          hintVi.classList.add('d-none');
+        } else {
+          hintVi.classList.remove('d-none');
+          hintArrows.classList.add('d-none');
+        }
+      }
+
+      function updateScoreUI() {
+        scoreEl.textContent = String(score);
+        highScoreEl.textContent = String(highScore);
+      }
+
+      function currentIntervalMs() {
+        const ms = BASE_INTERVAL_MS - (score * SPEEDUP_PER_FOOD);
+        return Math.max(MIN_INTERVAL_MS, ms);
+      }
+
+      function clearTimer() {
+        if (tickTimer) {
+          clearTimeout(tickTimer);
+          tickTimer = null;
+        }
+      }
+
+      function scheduleNextTick() {
+        clearTimer();
+        if (!running) return;
+        tickTimer = setTimeout(() => {
+          tick();
+          scheduleNextTick();
+        }, currentIntervalMs());
+      }
+
+      function cellEquals(a, b) { return a.x === b.x && a.y === b.y; }
+
+      function snakeOccupies(x, y) {
+        for (const seg of snake) {
+          if (seg.x === x && seg.y === y) return true;
+        }
+        return false;
+      }
+
+      function placeFood() {
+        // Find a random free cell. Use a bounded attempt count then fall back to scan.
+        for (let tries = 0; tries < 200; tries++) {
+          const x = randInt(0, COLS - 1);
+          const y = randInt(0, ROWS - 1);
+          if (!snakeOccupies(x, y)) {
+            food = { x, y };
+            return;
+          }
+        }
+        // Fallback scan
+        for (let y = 0; y < ROWS; y++) {
+          for (let x = 0; x < COLS; x++) {
+            if (!snakeOccupies(x, y)) {
+              food = { x, y };
+              return;
+            }
+          }
+        }
+      }
+
+      function resetGame() {
+        score = 0;
+        dir = { x: 1, y: 0 };
+        pendingDir = null;
+        gameOver = false;
+
+        // Start snake centered, length 4, moving right
+        const startX = Math.floor(COLS / 2) - 1;
+        const startY = Math.floor(ROWS / 2);
+
+        snake = [
+          { x: startX + 2, y: startY },
+          { x: startX + 1, y: startY },
+          { x: startX,     y: startY },
+          { x: startX - 1, y: startY }
+        ];
+
+        placeFood();
+        updateScoreUI();
+        draw(true);
+      }
+
+      function startGame() {
+        // If modal is open, close it.
+        try { gameOverModal.hide(); } catch (_) {}
+
+        resetGame();
+        running = true;
+        scheduleNextTick();
+      }
+
+      function endGame() {
+        running = false;
+        gameOver = true;
+        clearTimer();
+
+        if (score > highScore) highScore = score;
+        updateScoreUI();
+
+        finalScoreEl.textContent = String(score);
+        finalHighScoreEl.textContent = String(highScore);
+        gameOverModal.show();
+      }
+
+      function tryQueueDirection(next) {
+        // Prevent reversing into itself: disallow exact opposite of current direction
+        if (next.x === -dir.x && next.y === -dir.y) return;
+        pendingDir = next;
+      }
+
+      // ====== Input ======
+      function handleKeyDown(e) {
+        const key = e.key;
+
+        // Start trigger when not running (either fresh or after game over)
+        if (!running && (key === ' ' || key === 'Enter')) {
+          e.preventDefault();
+          startGame();
+          return;
+        }
+
+        // During game, block page scroll on arrows/space
+        if (key === ' ' || key.startsWith('Arrow')) e.preventDefault();
+
+        if (!running) return; // ignore movement keys when not running
+
+        if (controlMode === 'arrows') {
+          if (key === 'ArrowUp')    tryQueueDirection({ x: 0, y: -1 });
+          if (key === 'ArrowDown')  tryQueueDirection({ x: 0, y:  1 });
+          if (key === 'ArrowLeft')  tryQueueDirection({ x: -1, y: 0 });
+          if (key === 'ArrowRight') tryQueueDirection({ x:  1, y: 0 });
+        } else {
+          // Vim classic lowercase only: h j k l
+          if (key === 'k') tryQueueDirection({ x: 0, y: -1 });
+          if (key === 'j') tryQueueDirection({ x: 0, y:  1 });
+          if (key === 'h') tryQueueDirection({ x: -1, y: 0 });
+          if (key === 'l') tryQueueDirection({ x:  1, y: 0 });
+        }
+      }
+
+      document.addEventListener('keydown', handleKeyDown, { passive: false });
+
+      controlsArrows.addEventListener('change', () => {
+        if (controlsArrows.checked) setControlMode('arrows');
+      });
+      controlsVi.addEventListener('change', () => {
+        if (controlsVi.checked) setControlMode('vi');
+      });
+
+      playAgainBtn.addEventListener('click', () => startGame());
+
+      // ====== Game Loop ======
+      function tick() {
+        if (!running) return;
+
+        if (pendingDir) {
+          dir = pendingDir;
+          pendingDir = null;
+        }
+
+        const head = snake[0];
+        const nextHead = { x: head.x + dir.x, y: head.y + dir.y };
+
+        // Wall collision: no wrapping
+        if (nextHead.x < 0 || nextHead.x >= COLS || nextHead.y < 0 || nextHead.y >= ROWS) {
+          endGame();
+          return;
+        }
+
+        // Self collision: note that moving into the last tail cell is OK IF tail moves away this tick.
+        // We'll compute the new body accordingly.
+        const willEat = cellEquals(nextHead, food);
+
+        // Build new snake:
+        const newSnake = [nextHead, ...snake];
+
+        if (!willEat) {
+          newSnake.pop(); // move forward, drop tail
+        }
+
+        // Check self collision after adjusting tail
+        for (let i = 1; i < newSnake.length; i++) {
+          if (cellEquals(newSnake[i], nextHead)) {
+            endGame();
+            return;
+          }
+        }
+
+        snake = newSnake;
+
+        if (willEat) {
+          score += 1;
+          if (score > highScore) highScore = score;
+          placeFood();
+          updateScoreUI();
+        }
+
+        draw(false);
+      }
+
+      // ====== Rendering ======
+      function draw(showStartOverlay) {
+        // Background
+        ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+
+        // Subtle grid
+        ctx.save();
+        ctx.globalAlpha = 0.18;
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1;
+        for (let x = 0; x <= COLS; x++) {
+          ctx.beginPath();
+          ctx.moveTo(x * CELL + 0.5, 0);
+          ctx.lineTo(x * CELL + 0.5, CANVAS_H);
+          ctx.stroke();
+        }
+        for (let y = 0; y <= ROWS; y++) {
+          ctx.beginPath();
+          ctx.moveTo(0, y * CELL + 0.5);
+          ctx.lineTo(CANVAS_W, y * CELL + 0.5);
+          ctx.stroke();
+        }
+        ctx.restore();
+
+        // Food
+        drawCell(food.x, food.y, '#f97316', true);
+
+        // Snake
+        for (let i = snake.length - 1; i >= 0; i--) {
+          const seg = snake[i];
+          const isHead = (i === 0);
+          drawCell(seg.x, seg.y, isHead ? '#60a5fa' : '#22c55e', false, isHead);
+        }
+
+        // Overlay prompt when not running and not game over modal
+        if (showStartOverlay && !running) {
+          ctx.save();
+          ctx.fillStyle = 'rgba(0,0,0,0.35)';
+          ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
+          ctx.fillStyle = 'rgba(255,255,255,0.92)';
+          ctx.font = 'bold 16px system-ui, -apple-system, Segoe UI, Roboto, Arial';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          const line1 = 'Press Space or Enter';
+          const line2 = 'to Start';
+          ctx.fillText(line1, CANVAS_W / 2, CANVAS_H / 2 - 10);
+          ctx.font = '14px system-ui, -apple-system, Segoe UI, Roboto, Arial';
+          ctx.fillText(line2, CANVAS_W / 2, CANVAS_H / 2 + 12);
+          ctx.restore();
+        }
+      }
+
+      function drawCell(x, y, fill, isFood, isHead = false) {
+        const px = x * CELL;
+        const py = y * CELL;
+
+        // Cell padding for a “chunky” look
+        const pad = 2;
+        const w = CELL - pad * 2;
+        const h = CELL - pad * 2;
+
+        // Body
+        ctx.save();
+        ctx.fillStyle = fill;
+
+        const radius = isFood ? 6 : (isHead ? 6 : 5);
+        roundRect(px + pad, py + pad, w, h, radius);
+        ctx.fill();
+
+        // Simple highlight
+        ctx.globalAlpha = 0.18;
+        ctx.fillStyle = '#ffffff';
+        roundRect(px + pad + 2, py + pad + 2, Math.max(0, w - 4), Math.max(0, h - 6), Math.max(2, radius - 2));
+        ctx.fill();
+
+        ctx.restore();
+      }
+
+      function roundRect(x, y, w, h, r) {
+        const rr = Math.min(r, w / 2, h / 2);
+        ctx.beginPath();
+        ctx.moveTo(x + rr, y);
+        ctx.arcTo(x + w, y, x + w, y + h, rr);
+        ctx.arcTo(x + w, y + h, x, y + h, rr);
+        ctx.arcTo(x, y + h, x, y, rr);
+        ctx.arcTo(x, y, x + w, y, rr);
+        ctx.closePath();
+      }
+
+      // ====== Init ======
+      setControlMode('arrows');
+      resetGame();
+
+      // Ensure the overlay is visible on first load
+      draw(true);
+
+      // When modal closes, keep the board shown (frozen)
+      gameOverModalEl.addEventListener('hidden.bs.modal', () => {
+        // no-op; user can press space/enter to start again
+      });
+    })();
+  </script>
+</body>
+</html>
