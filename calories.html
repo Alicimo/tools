@@ -201,16 +201,7 @@
             <a href="https://www.canada.ca/content/dam/hc-sc/migration/hc-sc/fn-an/alt_formats/hpfb-dgpsa/pdf/nutrition/dri_tables-eng.pdf" target="_blank" rel="noreferrer">Health Canada — DRI tables (PAL definitions)</a><br/>
             <a href="https://www.ncbi.nlm.nih.gov/books/NBK591020/" target="_blank" rel="noreferrer">NCBI — Applications of the Dietary Reference Intakes for Energy (PAL discussion)</a>
           </li>
-          <li>
-            (Optional context) Revised Harris–Benedict reevaluation paper (not used in the calculation here):<br/>
-            <a href="https://pubmed.ncbi.nlm.nih.gov/6741850/" target="_blank" rel="noreferrer">Roza &amp; Shizgal, 1984 — “The Harris Benedict equation reevaluated…”</a>
-          </li>
         </ul>
-
-        <div class="footer-note">
-          If you want, I can add a toggle to switch between Mifflin–St Jeor and Revised Harris–Benedict, or add an
-          “energy deficit/surplus” slider and show its effect as separate contours.
-        </div>
       </div>
     </section>
   </div>
@@ -223,39 +214,61 @@
     }
     function tdeeFromBmr(bmr, activity) { return bmr * activity; }
 
-    // --- Plot grid configuration ---
-    // Keep this reasonably sized so it runs smoothly in-browser.
-    const GRID = {
-      wMin: 40,  wMax: 140, wStep: 1,   // kg
-      hMin: 140, hMax: 210, hStep: 1    // cm
-    };
-
     function makeRange(min, max, step) {
       const out = [];
       for (let v = min; v <= max + 1e-9; v += step) out.push(+v.toFixed(6));
       return out;
     }
 
-    const weights = makeRange(GRID.wMin, GRID.wMax, GRID.wStep); // x
-    const heights = makeRange(GRID.hMin, GRID.hMax, GRID.hStep); // y
+    function buildGrid(heightCm, weightKg) {
+      const wMin = weightKg - 20;
+      const wMax = weightKg + 20;
+      const hMin = heightCm - 20;
+      const hMax = heightCm + 20;
+      const wStep = 1;
+      const hStep = 1;
+      const weights = makeRange(wMin, wMax, wStep); // x
+      const heights = makeRange(hMin, hMax, hStep); // y
+      return { wMin, wMax, hMin, hMax, wStep, hStep, weights, heights };
+    }
 
     function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 
     // --- Build contour surface Z (TDEE) for given age/sex/activity ---
-    function computeZ({ageY, sex, activity}) {
+    function computeZ({ageY, sex, activity, grid}) {
       // Plotly contour expects z as 2D array: rows correspond to y (heights), columns to x (weights)
-      const z = new Array(heights.length);
-      for (let i = 0; i < heights.length; i++) {
-        const h = heights[i];
-        const row = new Array(weights.length);
-        for (let j = 0; j < weights.length; j++) {
-          const w = weights[j];
+      const z = new Array(grid.heights.length);
+      for (let i = 0; i < grid.heights.length; i++) {
+        const h = grid.heights[i];
+        const row = new Array(grid.weights.length);
+        for (let j = 0; j < grid.weights.length; j++) {
+          const w = grid.weights[j];
           const bmr = bmrMifflinStJeor({weightKg: w, heightCm: h, ageY, sex});
           row[j] = tdeeFromBmr(bmr, activity);
         }
         z[i] = row;
       }
       return z;
+    }
+
+    function getZRange(z) {
+      let min = Infinity;
+      let max = -Infinity;
+      for (let i = 0; i < z.length; i++) {
+        const row = z[i];
+        for (let j = 0; j < row.length; j++) {
+          const v = row[j];
+          if (v < min) min = v;
+          if (v > max) max = v;
+        }
+      }
+      return { min, max };
+    }
+
+    function contourBounds(min, max, step) {
+      const start = Math.floor(min / step) * step;
+      const end = Math.ceil(max / step) * step;
+      return { start, end, size: step };
     }
 
     // --- UI state ---
@@ -269,6 +282,7 @@
       bmrOut: document.getElementById("bmrOut"),
       plot: document.getElementById("plot"),
     };
+    let currentGrid = null;
 
     function readInputs() {
       const heightCm = clamp(Number(els.heightCm.value || 0), 100, 260);
@@ -289,9 +303,9 @@
     }
 
     // --- Plotly helpers (crosshairs + point) ---
-    function makeCrosshairShapes(xWeight, yHeight) {
-      const x = clamp(xWeight, GRID.wMin, GRID.wMax);
-      const y = clamp(yHeight, GRID.hMin, GRID.hMax);
+    function makeCrosshairShapes(xWeight, yHeight, grid) {
+      const x = clamp(xWeight, grid.wMin, grid.wMax);
+      const y = clamp(yHeight, grid.hMin, grid.hMax);
 
       return [
         // vertical line at selected weight
@@ -299,14 +313,14 @@
           type: "line",
           xref: "x", yref: "y",
           x0: x, x1: x,
-          y0: GRID.hMin, y1: GRID.hMax,
+          y0: grid.hMin, y1: grid.hMax,
           line: { width: 2, dash: "dot" }
         },
         // horizontal line at selected height
         {
           type: "line",
           xref: "x", yref: "y",
-          x0: GRID.wMin, x1: GRID.wMax,
+          x0: grid.wMin, x1: grid.wMax,
           y0: y, y1: y,
           line: { width: 2, dash: "dot" }
         }
@@ -315,18 +329,23 @@
 
     function initPlot() {
       const { heightCm, weightKg, ageY, sex, activity } = readInputs();
-      const z = computeZ({ageY, sex, activity});
+      currentGrid = buildGrid(heightCm, weightKg);
+      const z = computeZ({ageY, sex, activity, grid: currentGrid});
+      const zRange = getZRange(z);
+      const contourCfg = contourBounds(zRange.min, zRange.max, 100);
 
       const contour = {
         type: "contour",
-        x: weights,
-        y: heights,
+        x: currentGrid.weights,
+        y: currentGrid.heights,
         z: z,
         contours: {
           coloring: "heatmap",
-          start: 1000,
-          end: 5000,
-          size: 100   // <- 100 kcal/day bands
+          start: contourCfg.start,
+          end: contourCfg.end,
+          size: contourCfg.size,   // <- 100 kcal/day bands
+          showlabels: true,
+          labelfont: { size: 11, color: "#eaf0ff" }
         },
         hovertemplate:
           "Weight: %{x} kg<br>Height: %{y} cm<br>TDEE: %{z:.0f} kcal/day<extra></extra>",
@@ -336,8 +355,8 @@
       const point = {
         type: "scatter",
         mode: "markers",
-        x: [clamp(weightKg, GRID.wMin, GRID.wMax)],
-        y: [clamp(heightCm, GRID.hMin, GRID.hMax)],
+        x: [clamp(weightKg, currentGrid.wMin, currentGrid.wMax)],
+        y: [clamp(heightCm, currentGrid.hMin, currentGrid.hMax)],
         marker: { size: 11, line: { width: 2 } },
         hovertemplate: "Your input<br>Weight: %{x} kg<br>Height: %{y} cm<extra></extra>",
         name: "You"
@@ -345,11 +364,11 @@
 
       const layout = {
         margin: { l: 60, r: 30, t: 10, b: 55 },
-        xaxis: { title: "Weight (kg)", range: [GRID.wMin, GRID.wMax], zeroline: false },
-        yaxis: { title: "Height (cm)", range: [GRID.hMin, GRID.hMax], zeroline: false },
+        xaxis: { title: "Weight (kg)", range: [currentGrid.wMin, currentGrid.wMax], zeroline: false },
+        yaxis: { title: "Height (cm)", range: [currentGrid.hMin, currentGrid.hMax], zeroline: false },
         paper_bgcolor: "rgba(0,0,0,0)",
         plot_bgcolor: "rgba(0,0,0,0)",
-        shapes: makeCrosshairShapes(weightKg, heightCm),
+        shapes: makeCrosshairShapes(weightKg, heightCm, currentGrid),
         showlegend: false
       };
 
@@ -359,20 +378,27 @@
     // Recompute surface (age/sex/activity) and refresh plot
     function refreshSurface() {
       const { heightCm, weightKg, ageY, sex, activity } = readInputs();
-      const z = computeZ({ageY, sex, activity});
+      currentGrid = buildGrid(heightCm, weightKg);
+      const z = computeZ({ageY, sex, activity, grid: currentGrid});
+      const zRange = getZRange(z);
+      const contourCfg = contourBounds(zRange.min, zRange.max, 100);
+      const x = clamp(weightKg, currentGrid.wMin, currentGrid.wMax);
+      const y = clamp(heightCm, currentGrid.hMin, currentGrid.hMax);
 
-      Plotly.restyle(els.plot, { z: [z] }, [0]); // trace 0 is contour
-      refreshCrosshairsAndPoint();
-    }
-
-    // Only crosshairs/point move (height/weight)
-    function refreshCrosshairsAndPoint() {
-      const { heightCm, weightKg } = readInputs();
-      const x = clamp(weightKg, GRID.wMin, GRID.wMax);
-      const y = clamp(heightCm, GRID.hMin, GRID.hMax);
-
-      Plotly.relayout(els.plot, { shapes: makeCrosshairShapes(x, y) });
-      Plotly.restyle(els.plot, { x: [[x]], y: [[y]] }, [1]); // trace 1 is point
+      Plotly.restyle(els.plot, {
+        x: [currentGrid.weights],
+        y: [currentGrid.heights],
+        z: [z],
+        "contours.start": contourCfg.start,
+        "contours.end": contourCfg.end,
+        "contours.size": contourCfg.size,
+      }, [0]); // contour
+      Plotly.restyle(els.plot, { x: [[x]], y: [[y]] }, [1]); // point
+      Plotly.relayout(els.plot, {
+        shapes: makeCrosshairShapes(x, y, currentGrid),
+        "xaxis.range": [currentGrid.wMin, currentGrid.wMax],
+        "yaxis.range": [currentGrid.hMin, currentGrid.hMax],
+      });
     }
 
     // --- Tabs ---
@@ -388,7 +414,7 @@
     });
 
     // --- Wire up events ---
-    function onHeightWeight() { updateKpi(); refreshCrosshairsAndPoint(); }
+    function onHeightWeight() { updateKpi(); refreshSurface(); }
     function onModelParams() { updateKpi(); refreshSurface(); }
 
     els.heightCm.addEventListener("input", onHeightWeight);
