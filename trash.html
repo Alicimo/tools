@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Trash Collection Calendar (ICS)</title>
+
+  <!-- Bootstrap 5 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+
+  <!-- FullCalendar (no React) -->
+  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css" rel="stylesheet" />
+  <style>
+    body { background: #f8f9fa; }
+    #calendar { background: #fff; border-radius: 0.75rem; padding: 1rem; }
+    .fc { font-size: 0.95rem; }
+    .muted-note { color: #6c757d; }
+  </style>
+</head>
+<body>
+  <div class="container py-4">
+    <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-3">
+      <div>
+        <h1 class="h3 mb-1">Trash Collection Calendar</h1>
+        <div class="muted-note">
+          Loads a local <code>.ics</code> file and renders day-long collection events.
+        </div>
+      </div>
+
+    </div>
+
+    <div id="nextBanner" class="alert alert-secondary d-flex align-items-center justify-content-between flex-wrap gap-2" role="alert">
+      <div>
+        <strong>Next collection:</strong>
+        <span id="nextInfo">Loading…</span>
+      </div>
+      <div class="small muted-note">
+        Today: <span id="todayInfo"></span>
+      </div>
+    </div>
+
+    <div id="errorBox" class="alert alert-danger d-none" role="alert"></div>
+
+    <div class="row g-3">
+      <div class="col-12 col-lg-9">
+        <div id="calendar"></div>
+      </div>
+      <div class="col-12 col-lg-3">
+        <div class="card shadow-sm">
+          <div class="card-body">
+            <h2 class="h6 mb-2">Legend</h2>
+            <div id="legend" class="small"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <footer class="pt-4 small muted-note">
+      Uses <a href="https://fullcalendar.io/" target="_blank" rel="noreferrer">FullCalendar</a> for rendering and
+      <a href="https://github.com/mozilla-comm/ical.js" target="_blank" rel="noreferrer">ical.js</a> for parsing.
+    </footer>
+  </div>
+
+  <!-- FullCalendar global bundle -->
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+
+  <!-- ical.js -->
+  <script src="https://cdn.jsdelivr.net/npm/ical.js@1.5.0/build/ical.min.js"></script>
+
+  <script>
+    /**
+     * ✅ Put your .ics file next to this HTML file and update this value if needed.
+     * Example: "BN_Kottingbrunn_2_2026.ics"
+     */
+    const ICS_URL = "resources/BN_Kottingbrunn_2_2026.ics";
+
+    // --- Utilities ---
+    function startOfLocalDay(d) {
+      return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    }
+
+    function daysBetweenLocalDays(a, b) {
+      // a and b are Dates at local midnight
+      const msPerDay = 24 * 60 * 60 * 1000;
+      const diff = b.getTime() - a.getTime();
+      return Math.round(diff / msPerDay);
+    }
+
+    function safeText(s) {
+      return (s ?? "").toString().trim();
+    }
+
+    function colorForType(type) {
+      // Deterministic color by hashing the type string -> HSL
+      let hash = 0;
+      for (let i = 0; i < type.length; i++) hash = (hash * 31 + type.charCodeAt(i)) >>> 0;
+      const hue = hash % 360;
+      return `hsl(${hue} 65% 45%)`;
+    }
+
+    function showError(msg) {
+      const box = document.getElementById("errorBox");
+      box.textContent = msg;
+      box.classList.remove("d-none");
+    }
+
+    function hideError() {
+      const box = document.getElementById("errorBox");
+      box.classList.add("d-none");
+      box.textContent = "";
+    }
+
+    function formatLocalDate(d) {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return `${y}-${m}-${day}`;
+    }
+
+    // --- Parse ICS to FullCalendar events ---
+    function parseIcsToEvents(icsText) {
+      const jcal = ICAL.parse(icsText);
+      const comp = new ICAL.Component(jcal);
+      const vevents = comp.getAllSubcomponents("vevent") || [];
+
+      const events = [];
+      const typeSet = new Set();
+
+      for (const v of vevents) {
+        const ev = new ICAL.Event(v);
+
+        // Summary is typically where "type" lives (e.g., "Restmüll", "Papier", etc.)
+        const summary = safeText(ev.summary) || "Collection";
+
+        // All-day DTSTART in ICS can be "DATE" (no time). ical.js gives an ICAL.Time
+        const startTime = ev.startDate; // ICAL.Time
+        if (!startTime) continue;
+
+        // Convert ICAL.Time -> JS Date in local time for DATE values
+        // For all-day events, startTime.isDate === true; toJSDate() returns midnight UTC-ish;
+        // We'll normalize to local day based on Y/M/D from ICAL.Time to avoid TZ weirdness.
+        const start = new Date(startTime.year, startTime.month - 1, startTime.day);
+
+        // End date: ICS all-day typically uses exclusive DTEND (next day). If absent, use start+1 day.
+        let end;
+        if (ev.endDate) {
+          const et = ev.endDate;
+          end = new Date(et.year, et.month - 1, et.day);
+        } else {
+          end = new Date(start);
+          end.setDate(end.getDate() + 1);
+        }
+        // Timed events are intentionally collapsed to full-day spans in this app.
+        // FullCalendar treats all-day end as exclusive; ensure at least a 1-day span.
+        if (end <= start) {
+          end = new Date(start);
+          end.setDate(end.getDate() + 1);
+        }
+
+        // Use summary as "collection type"
+        const collectionType = summary;
+        typeSet.add(collectionType);
+
+        events.push({
+          title: collectionType,
+          start: formatLocalDate(start), // YYYY-MM-DD for allDay (local)
+          end: formatLocalDate(end),     // exclusive end for allDay (local)
+          allDay: true,
+          backgroundColor: colorForType(collectionType),
+          borderColor: colorForType(collectionType),
+          extendedProps: {
+            collectionType
+          }
+        });
+      }
+
+      // Sort by start date ascending
+      events.sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : 0));
+
+      return { events, types: Array.from(typeSet).sort((a, b) => a.localeCompare(b)) };
+    }
+
+    // --- Next collection banner ---
+    function updateNextBanner(events) {
+      const today = startOfLocalDay(new Date());
+      document.getElementById("todayInfo").textContent =
+        today.toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+
+      // Find next event whose start day is today or later
+      const next = events.find(e => {
+        const [yy, mm, dd] = e.start.split("-").map(Number);
+        const d = new Date(yy, mm - 1, dd);
+        return d.getTime() >= today.getTime();
+      });
+
+      const nextInfoEl = document.getElementById("nextInfo");
+      if (!next) {
+        nextInfoEl.textContent = "No upcoming collections found in this ICS file.";
+        return;
+      }
+
+      const [yy, mm, dd] = next.start.split("-").map(Number);
+      const nextDay = new Date(yy, mm - 1, dd);
+      const deltaDays = daysBetweenLocalDays(today, startOfLocalDay(nextDay));
+      const type = next.extendedProps?.collectionType || next.title || "Collection";
+
+      const when =
+        nextDay.toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+
+      if (deltaDays === 0) {
+        nextInfoEl.innerHTML = `<span class="badge text-bg-success me-2">Today</span> ${when} — <strong>${type}</strong>`;
+      } else if (deltaDays === 1) {
+        nextInfoEl.innerHTML = `<span class="badge text-bg-primary me-2">In 1 day</span> ${when} — <strong>${type}</strong>`;
+      } else {
+        nextInfoEl.innerHTML = `<span class="badge text-bg-primary me-2">In ${deltaDays} days</span> ${when} — <strong>${type}</strong>`;
+      }
+    }
+
+    // --- Legend ---
+    function renderLegend(types) {
+      const el = document.getElementById("legend");
+      if (!types.length) {
+        el.textContent = "No types found.";
+        return;
+      }
+      el.innerHTML = "";
+      for (const t of types) {
+        const row = document.createElement("div");
+        row.className = "d-flex align-items-center gap-2 mb-1";
+        const swatch = document.createElement("span");
+        swatch.style.width = "12px";
+        swatch.style.height = "12px";
+        swatch.style.borderRadius = "3px";
+        swatch.style.display = "inline-block";
+        swatch.style.background = colorForType(t);
+        const label = document.createElement("span");
+        label.textContent = t;
+        row.appendChild(swatch);
+        row.appendChild(label);
+        el.appendChild(row);
+      }
+    }
+
+    // --- Calendar ---
+    let calendar;
+
+    function renderCalendar(events) {
+      const calEl = document.getElementById("calendar");
+
+      if (calendar) {
+        calendar.removeAllEventSources();
+        calendar.addEventSource(events);
+        calendar.refetchEvents();
+        return;
+      }
+
+      calendar = new FullCalendar.Calendar(calEl, {
+        initialView: "dayGridMonth",
+        height: "auto",
+        firstDay: 1, // Monday (common in AT)
+        headerToolbar: {
+          left: "prev,next today",
+          center: "title",
+          right: "dayGridMonth,timeGridWeek,listMonth"
+        },
+        navLinks: true,
+        nowIndicator: true,
+        eventDisplay: "block",
+        events,
+        eventDidMount: function(info) {
+          // Tooltip-like title
+          info.el.setAttribute("title", info.event.title);
+        }
+      });
+
+      calendar.render();
+    }
+
+    // --- Load ICS ---
+    async function loadIcsAndRender() {
+      hideError();
+      document.getElementById("nextInfo").textContent = "Loading…";
+
+      let icsText;
+      try {
+        const res = await fetch(ICS_URL, { cache: "no-store" });
+        if (!res.ok) throw new Error(`HTTP ${res.status} when fetching ${ICS_URL}`);
+        icsText = await res.text();
+      } catch (err) {
+        showError(
+          `Could not load "${ICS_URL}". ` +
+          `Make sure the ICS file is in the same folder as this HTML file and you are serving the folder via HTTP. ` +
+          `Details: ${err.message}`
+        );
+        document.getElementById("nextInfo").textContent = "Failed to load ICS.";
+        return;
+      }
+
+      let parsed;
+      try {
+        parsed = parseIcsToEvents(icsText);
+      } catch (err) {
+        showError(`Failed to parse ICS. Details: ${err.message}`);
+        document.getElementById("nextInfo").textContent = "Failed to parse ICS.";
+        return;
+      }
+
+      updateNextBanner(parsed.events);
+      renderLegend(parsed.types);
+      renderCalendar(parsed.events);
+    }
+
+    // --- Wire up UI ---
+
+    // Initial load
+    loadIcsAndRender();
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
