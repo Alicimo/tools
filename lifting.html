@@ -13,6 +13,8 @@
     .small-note { font-size: 0.9rem; color: #6c757d; }
     .sticky-top-lite { position: sticky; top: 0; z-index: 1020; background: white; }
     .table td, .table th { vertical-align: middle; }
+    .plate-breakdown { font-size: 0.85rem; color: #495057; }
+    .plate-breakdown summary { cursor: pointer; }
   </style>
 </head>
 
@@ -53,6 +55,14 @@
                 <option value="5">5 kg</option>
                 <option value="0">No rounding</option>
               </select>
+            </div>
+
+            <div class="col-12">
+              <label class="form-label">Available plates (pairs)</label>
+              <div id="plateInputs" class="row g-2 align-items-end"></div>
+              <div class="small-note mt-1">
+                Counts are pairs, so a 20 kg plate means 40 kg total on the bar.
+              </div>
             </div>
 
             <div class="col-12">
@@ -102,6 +112,16 @@
       rounding: 0.5
     };
 
+    const DEFAULT_PLATES = [
+      { size: 20, pairs: 2 },
+      { size: 10, pairs: 1 },
+      { size: 5, pairs: 1 },
+      { size: 2.5, pairs: 1 },
+      { size: 1.25, pairs: 1 },
+      { size: 1, pairs: 1 },
+      { size: 0.5, pairs: 1 }
+    ];
+
     // Operator 6-week wave definition
     // You can add/remove exercises here.
     const PROGRAM = [
@@ -147,11 +167,18 @@
     }
 
     function getSettingsFromInputs() {
+      const plateInputs = Array.from(document.querySelectorAll("[data-plate-size]"));
+      const availablePlates = plateInputs.map(input => ({
+        size: safeFloat(input.dataset.plateSize, 0),
+        pairs: Math.max(0, safeInt(input.value, 0))
+      })).filter(p => p.size > 0);
+
       return {
         rmSquat: safeFloat(document.getElementById("rmSquat").value, DEFAULTS.rmSquat),
         rmBench: safeFloat(document.getElementById("rmBench").value, DEFAULTS.rmBench),
         maxPullupReps: safeInt(document.getElementById("maxPullupReps").value, DEFAULTS.maxPullupReps),
-        rounding: safeFloat(document.getElementById("rounding").value, DEFAULTS.rounding)
+        rounding: safeFloat(document.getElementById("rounding").value, DEFAULTS.rounding),
+        availablePlates
       };
     }
 
@@ -160,11 +187,64 @@
       document.getElementById("rmBench").value = s.rmBench;
       document.getElementById("maxPullupReps").value = s.maxPullupReps;
       document.getElementById("rounding").value = String(s.rounding);
+      DEFAULT_PLATES.forEach(plate => {
+        const input = document.querySelector(`[data-plate-size="${plate.size}"]`);
+        if (input) input.value = plate.pairs;
+      });
     }
 
     // ----------------------------
     // Rendering
     // ----------------------------
+    function formatPlateList(usedPlates) {
+      if (!usedPlates.length) return "No plates needed per side.";
+      return usedPlates.map(p => `${p.size}×${p.count}`).join(", ");
+    }
+
+    function buildPlateBreakdown(totalWeight, availablePlates) {
+      if (!availablePlates.length) {
+        return { perSide: totalWeight / 2, usedPlates: [], remainder: totalWeight / 2 };
+      }
+
+      const perSide = totalWeight / 2;
+      const sorted = [...availablePlates].sort((a, b) => b.size - a.size);
+      let remaining = Math.round(perSide * 1000) / 1000;
+      const usedPlates = [];
+      const epsilon = 0.001;
+
+      sorted.forEach(plate => {
+        let count = 0;
+        while (plate.pairs - count > 0 && remaining + epsilon >= plate.size) {
+          remaining = Math.round((remaining - plate.size) * 1000) / 1000;
+          count += 1;
+        }
+        if (count > 0) {
+          usedPlates.push({ size: plate.size, count });
+        }
+      });
+
+      return { perSide, usedPlates, remainder: remaining };
+    }
+
+    function buildPlateBreakdownHtml(totalWeight, availablePlates) {
+      const breakdown = buildPlateBreakdown(totalWeight, availablePlates);
+      const remainder = breakdown.remainder;
+      const remainderNote = remainder > 0.01
+        ? `<div class="text-danger">Unallocated: ${fmtKg(remainder)} per side</div>`
+        : "";
+
+      return `
+        <details class="plate-breakdown mt-1">
+          <summary>Plate breakdown</summary>
+          <div class="mt-1">
+            <div>${formatPlateList(breakdown.usedPlates)}</div>
+            <div class="small-note">Per side (${fmtKg(breakdown.perSide)} target).</div>
+            ${remainderNote}
+          </div>
+        </details>
+      `;
+    }
+
     function buildWeekTable(week, settings) {
       const rows = PROGRAM.map(ex => {
         if (ex.type === "1rm") {
@@ -175,7 +255,10 @@
             <tr>
               <td>${ex.name}</td>
               <td class="mono text-nowrap">${week.sets}×${week.reps}</td>
-              <td class="mono text-nowrap">${fmtKg(w)}</td>
+              <td class="mono text-nowrap">
+                <div>${fmtKg(w)}</div>
+                ${buildPlateBreakdownHtml(w, settings.availablePlates)}
+              </td>
             </tr>
           `;
         }
@@ -249,6 +332,16 @@
       setInputsFromSettings(DEFAULTS);
     }
 
+    function renderPlateInputs() {
+      const container = document.getElementById("plateInputs");
+      container.innerHTML = DEFAULT_PLATES.map(plate => `
+        <div class="col-6 col-md-3 col-lg-2">
+          <label class="form-label mb-0">${plate.size} kg</label>
+          <input type="number" min="0" step="1" class="form-control form-control-sm" data-plate-size="${plate.size}" value="${plate.pairs}">
+        </div>
+      `).join("");
+    }
+
     // ----------------------------
     // Wire up events
     // ----------------------------
@@ -263,9 +356,15 @@
     });
 
     // Initial load: tabs + defaults
+    renderPlateInputs();
     buildTabs();
     resetDefaults();
     renderAll();
+
+    document.querySelectorAll("[data-plate-size]").forEach(input => {
+      input.addEventListener("input", renderAll);
+      input.addEventListener("change", renderAll);
+    });
   </script>
 </body>
 </html>
