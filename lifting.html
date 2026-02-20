@@ -56,6 +56,10 @@
                 <option value="0">No rounding</option>
               </select>
             </div>
+            <div class="col-6 col-lg-3">
+              <label class="form-label">Bar weight (kg)</label>
+              <input id="barWeight" type="number" class="form-control" min="0" step="0.5" value="20">
+            </div>
 
             <div class="col-12">
               <label class="form-label">Available plates (pairs)</label>
@@ -109,7 +113,8 @@
       rmSquat: 109,
       rmBench: 82,
       maxPullupReps: 9,
-      rounding: 0.5
+      rounding: 0.5,
+      barWeight: 20
     };
 
     const DEFAULT_PLATES = [
@@ -173,20 +178,22 @@
         pairs: Math.max(0, safeInt(input.value, 0))
       })).filter(p => p.size > 0);
 
-      return {
-        rmSquat: safeFloat(document.getElementById("rmSquat").value, DEFAULTS.rmSquat),
-        rmBench: safeFloat(document.getElementById("rmBench").value, DEFAULTS.rmBench),
-        maxPullupReps: safeInt(document.getElementById("maxPullupReps").value, DEFAULTS.maxPullupReps),
-        rounding: safeFloat(document.getElementById("rounding").value, DEFAULTS.rounding),
-        availablePlates
-      };
-    }
+        return {
+          rmSquat: safeFloat(document.getElementById("rmSquat").value, DEFAULTS.rmSquat),
+          rmBench: safeFloat(document.getElementById("rmBench").value, DEFAULTS.rmBench),
+          maxPullupReps: safeInt(document.getElementById("maxPullupReps").value, DEFAULTS.maxPullupReps),
+          rounding: safeFloat(document.getElementById("rounding").value, DEFAULTS.rounding),
+          barWeight: safeFloat(document.getElementById("barWeight").value, DEFAULTS.barWeight),
+          availablePlates
+        };
+      }
 
     function setInputsFromSettings(s) {
       document.getElementById("rmSquat").value = s.rmSquat;
       document.getElementById("rmBench").value = s.rmBench;
       document.getElementById("maxPullupReps").value = s.maxPullupReps;
       document.getElementById("rounding").value = String(s.rounding);
+      document.getElementById("barWeight").value = s.barWeight;
       DEFAULT_PLATES.forEach(plate => {
         const input = document.querySelector(`[data-plate-size="${plate.size}"]`);
         if (input) input.value = plate.pairs;
@@ -201,33 +208,92 @@
       return usedPlates.map(p => `${p.size}×${p.count}`).join(", ");
     }
 
-    function buildPlateBreakdown(totalWeight, availablePlates) {
+    function buildPlateBreakdown(totalWeight, barWeight, availablePlates) {
+      const plateTarget = Math.max(0, totalWeight - barWeight);
+      const perSideTarget = plateTarget / 2;
       if (!availablePlates.length) {
-        return { perSide: totalWeight / 2, usedPlates: [], remainder: totalWeight / 2 };
+        return { perSideTarget, usedPlates: [], remainder: perSideTarget };
       }
 
-      const perSide = totalWeight / 2;
       const sorted = [...availablePlates].sort((a, b) => b.size - a.size);
-      let remaining = Math.round(perSide * 1000) / 1000;
-      const usedPlates = [];
-      const epsilon = 0.001;
+      const sizes = sorted.map(plate => plate.size).filter(size => size > 0);
+      const maxDecimals = sizes.reduce((acc, size) => {
+        const part = String(size).split(".")[1];
+        return Math.max(acc, part ? part.length : 0);
+      }, 0);
+      const scale = Math.pow(10, Math.min(6, maxDecimals));
+      if (!Number.isFinite(scale) || scale <= 0) {
+        return { perSideTarget, usedPlates: [], remainder: perSideTarget };
+      }
 
-      sorted.forEach(plate => {
-        let count = 0;
-        while (plate.pairs - count > 0 && remaining + epsilon >= plate.size) {
-          remaining = Math.round((remaining - plate.size) * 1000) / 1000;
-          count += 1;
+      const sizeUnits = sizes.map(size => Math.round(size * scale));
+      const gcd = (a, b) => (b === 0 ? a : gcd(b, a % b));
+      const unit = sizeUnits.reduce((acc, size) => gcd(acc, size), sizeUnits[0] || 1);
+      const normalizedScale = scale / unit;
+      const normalizedSizes = sizeUnits.map(size => Math.round(size / unit));
+      const targetUnits = Math.floor(perSideTarget * normalizedScale + 1e-6);
+      const dp = Array.from({ length: targetUnits + 1 }, () => null);
+      dp[0] = { plates: 0, prev: null, plateIndex: null, count: 0 };
+
+      sorted.forEach((plate, plateIndex) => {
+        const sizeUnits = normalizedSizes[plateIndex];
+        const maxCount = Math.max(0, plate.pairs);
+        const next = dp.slice();
+
+        for (let w = 0; w <= targetUnits; w += 1) {
+          const entry = dp[w];
+          if (!entry) continue;
+          for (let count = 1; count <= maxCount; count += 1) {
+            const newWeight = w + count * sizeUnits;
+            if (newWeight > targetUnits) break;
+            const newPlates = entry.plates + count;
+            const existing = next[newWeight];
+            if (!existing || newPlates < existing.plates) {
+              next[newWeight] = {
+                plates: newPlates,
+                prev: w,
+                plateIndex,
+                count
+              };
+            }
+          }
         }
-        if (count > 0) {
-          usedPlates.push({ size: plate.size, count });
+
+        for (let w = 0; w <= targetUnits; w += 1) {
+          dp[w] = next[w];
         }
       });
 
-      return { perSide, usedPlates, remainder: remaining };
+      let bestWeight = 0;
+      for (let w = targetUnits; w >= 0; w -= 1) {
+        if (dp[w]) {
+          bestWeight = w;
+          break;
+        }
+      }
+
+      const counts = new Array(sorted.length).fill(0);
+      let cursor = bestWeight;
+      while (cursor > 0) {
+        const entry = dp[cursor];
+        if (!entry || entry.prev === null || entry.plateIndex === null) break;
+        counts[entry.plateIndex] += entry.count;
+        cursor = entry.prev;
+      }
+
+      const usedPlates = [];
+      counts.forEach((count, idx) => {
+        if (count > 0) {
+          usedPlates.push({ size: sorted[idx].size, count });
+        }
+      });
+
+      const remainder = Math.max(0, perSideTarget - bestWeight / normalizedScale);
+      return { perSideTarget, usedPlates, remainder };
     }
 
-    function buildPlateBreakdownHtml(totalWeight, availablePlates) {
-      const breakdown = buildPlateBreakdown(totalWeight, availablePlates);
+    function buildPlateBreakdownHtml(totalWeight, barWeight, availablePlates) {
+      const breakdown = buildPlateBreakdown(totalWeight, barWeight, availablePlates);
       const remainder = breakdown.remainder;
       const remainderNote = remainder > 0.01
         ? `<div class="text-danger">Unallocated: ${fmtKg(remainder)} per side</div>`
@@ -238,7 +304,7 @@
           <summary>Plate breakdown</summary>
           <div class="mt-1">
             <div>${formatPlateList(breakdown.usedPlates)}</div>
-            <div class="small-note">Per side (${fmtKg(breakdown.perSide)} target).</div>
+            <div class="small-note">Bar: ${fmtKg(barWeight)}. Per side (${fmtKg(breakdown.perSideTarget)} target).</div>
             ${remainderNote}
           </div>
         </details>
@@ -257,7 +323,7 @@
               <td class="mono text-nowrap">${week.sets}×${week.reps}</td>
               <td class="mono text-nowrap">
                 <div>${fmtKg(w)}</div>
-                ${buildPlateBreakdownHtml(w, settings.availablePlates)}
+                ${buildPlateBreakdownHtml(w, settings.barWeight, settings.availablePlates)}
               </td>
             </tr>
           `;
@@ -321,6 +387,7 @@
       if (settings.rmSquat <= 0) settings.rmSquat = DEFAULTS.rmSquat;
       if (settings.rmBench <= 0) settings.rmBench = DEFAULTS.rmBench;
       if (settings.maxPullupReps <= 0) settings.maxPullupReps = DEFAULTS.maxPullupReps;
+      if (settings.barWeight < 0) settings.barWeight = DEFAULTS.barWeight;
 
       WEEKS.forEach(week => {
         const container = document.getElementById(`week${week.id}Table`);
@@ -345,7 +412,7 @@
     // ----------------------------
     // Wire up events
     // ----------------------------
-    ["rmSquat", "rmBench", "maxPullupReps", "rounding"].forEach(id => {
+    ["rmSquat", "rmBench", "maxPullupReps", "rounding", "barWeight"].forEach(id => {
       document.getElementById(id).addEventListener("input", renderAll);
       document.getElementById(id).addEventListener("change", renderAll);
     });
