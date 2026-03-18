@@ -156,9 +156,8 @@
     }
 
     function fmtKg(x) {
-      // avoid trailing .0 if integer
-      const rounded = Math.round(x * 10) / 10;
-      return (Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1)) + " kg";
+      const rounded = Math.round(x * 100) / 100;
+      return `${rounded.toFixed(2).replace(/\.00$/, '').replace(/(\.\d)0$/, '$1')} kg`;
     }
 
     function safeInt(x, fallback) {
