@@ -54,6 +54,9 @@
       border-color: var(--accent);
       box-shadow: 0 0 0 0.25rem rgba(15, 107, 168, 0.2);
     }
+    .random-button {
+      white-space: nowrap;
+    }
     .result-card {
       border: 1px solid rgba(28, 31, 38, 0.08);
       background: var(--surface);
@@ -83,6 +86,19 @@
         gap: 0.75rem;
       }
     }
+    @media (max-width: 576px) {
+      .search-card .input-group {
+        flex-wrap: wrap;
+      }
+      .search-card .input-group > .form-control {
+        min-width: 0;
+      }
+      .random-button {
+        flex: 1 0 100%;
+        margin-top: -1px;
+        width: 100%;
+      }
+    }
   </style>
 </head>
 <body>
@@ -109,6 +125,14 @@
           placeholder="Type a title, character, or story detail"
           autocomplete="off"
         >
+        <button
+          id="randomButton"
+          class="btn btn-primary random-button"
+          type="button"
+          disabled
+        >
+          Play random
+        </button>
       </div>
       <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between mt-3 gap-2">
         <div id="status" class="result-meta">Loading episodes…</div>
@@ -131,6 +155,7 @@
     const resultsEl = document.getElementById('results')
     const statusEl = document.getElementById('status')
     const metaEl = document.getElementById('meta')
+    const randomButton = document.getElementById('randomButton')
     const MAX_SNIPPET = 240
 
     const setStatus = (message) => {
@@ -275,6 +300,42 @@
       })
     }
 
+    const getSearchResults = (query) => {
+      if (!state.fuse) return []
+      const results = state.fuse.search(query)
+      const mapped = results.map((entry) => ({
+        item: entry.item,
+        score: entry.score ?? 1
+      }))
+
+      mapped.sort((a, b) => {
+        const scoreDiff = a.score - b.score
+        if (Math.abs(scoreDiff) > 0.05) return scoreDiff
+        return parseDateValue(b.item.published) - parseDateValue(a.item.published)
+      })
+
+      return mapped.map((entry) => entry.item)
+    }
+
+    const getEligibleEpisodes = (query) => {
+      const trimmed = query.trim()
+      if (!trimmed) return state.episodes
+      return getSearchResults(trimmed)
+    }
+
+    const pickRandom = (items) => {
+      return items[Math.floor(Math.random() * items.length)]
+    }
+
+    const tryPlayRenderedAudio = () => {
+      const audio = resultsEl.querySelector('audio')
+      if (!audio) return
+      const playRequest = audio.play()
+      if (playRequest && typeof playRequest.catch === 'function') {
+        playRequest.catch(() => {})
+      }
+    }
+
     const runSearch = (query) => {
       state.query = query
       const trimmed = query.trim()
@@ -290,20 +351,39 @@
         return
       }
 
-      const results = state.fuse.search(trimmed)
-      const mapped = results.map((entry) => ({
-        item: entry.item,
-        score: entry.score ?? 1
-      }))
-
-      mapped.sort((a, b) => {
-        const scoreDiff = a.score - b.score
-        if (Math.abs(scoreDiff) > 0.05) return scoreDiff
-        return parseDateValue(b.item.published) - parseDateValue(a.item.published)
-      })
-
-      renderResults(mapped.map((entry) => entry.item), trimmed)
+      renderResults(getSearchResults(trimmed), trimmed)
       setStatus(`Showing matches for "${trimmed}".`)
+    }
+
+    const playRandomEpisode = () => {
+      window.clearTimeout(debounceTimer)
+      const query = searchInput.value
+      const trimmed = query.trim()
+      state.query = query
+
+      if (!state.episodes.length) {
+        renderResults([], trimmed)
+        setStatus('Random play is not ready yet.')
+        return
+      }
+
+      const eligibleEpisodes = getEligibleEpisodes(query)
+      if (!eligibleEpisodes.length) {
+        renderResults([], trimmed)
+        setStatus(`No matches found for "${trimmed}".`)
+        return
+      }
+
+      const episode = pickRandom(eligibleEpisodes)
+      const selectedTitle = episode.title || 'Untitled episode'
+      searchInput.value = selectedTitle
+      state.query = selectedTitle
+      renderResults([episode], selectedTitle)
+      setStatus(trimmed
+        ? `Random pick from matches for "${trimmed}".`
+        : 'Random pick from all episodes.'
+      )
+      tryPlayRenderedAudio()
     }
 
     let debounceTimer
@@ -322,16 +402,19 @@
         const data = await response.json()
         state.episodes = Array.isArray(data.episodes) ? data.episodes : []
         state.fuse = buildFuse(state.episodes)
+        randomButton.disabled = !state.episodes.length
         setStatus(`Loaded ${state.episodes.length} episodes.`)
         renderResults([], '')
       } catch (error) {
         console.error(error)
+        randomButton.disabled = true
         setStatus('Unable to load the local episode dataset.')
         renderResults([], '')
       }
     }
 
     searchInput.addEventListener('input', handleInput)
+    randomButton.addEventListener('click', playRandomEpisode)
     loadEpisodes()
   </script>
 </body>
