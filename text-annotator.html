@@ -1,0 +1,969 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <title>Text Annotator</title>
+  <style>
+    :root {
+      --bg: #f5f7fa;
+      --panel: #ffffff;
+      --text: #18202f;
+      --muted: #667085;
+      --border: #d9dee8;
+      --strong: #111827;
+      --danger: #b42318;
+      --danger-bg: #fef3f2;
+      --focus: #2563eb;
+      --shadow: 0 14px 32px rgba(16, 24, 40, 0.12);
+      --radius: 16px;
+      --font-size: 26px;
+      --line-height: 1.55;
+      --content-width: 1120px;
+      --annotation-font:
+        Inter,
+        ui-sans-serif,
+        system-ui,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family:
+        Inter,
+        ui-sans-serif,
+        system-ui,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+      color: var(--text);
+      background: var(--bg);
+    }
+
+    button,
+    input,
+    select,
+    textarea {
+      font: inherit;
+    }
+
+    button {
+      min-height: 42px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 9px 12px;
+      color: var(--text);
+      background: #fff;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    button:focus-visible,
+    input:focus-visible,
+    select:focus-visible,
+    textarea:focus-visible,
+    .vignette:focus-visible {
+      outline: 3px solid rgba(37, 99, 235, 0.2);
+      outline-offset: 2px;
+      border-color: var(--focus);
+    }
+
+    button:active {
+      transform: translateY(1px);
+    }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      color: var(--text);
+      background: #fff;
+    }
+
+    input[type="color"] {
+      width: 46px;
+      height: 42px;
+      padding: 4px;
+      cursor: pointer;
+    }
+
+    input[type="range"] {
+      padding: 0;
+    }
+
+    textarea {
+      min-height: 170px;
+      resize: vertical;
+      line-height: 1.45;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 20px;
+      padding: 22px 28px 10px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 27px;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      margin: 5px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: 360px minmax(0, 1fr);
+      gap: 22px;
+      padding: 16px 28px 28px;
+    }
+
+    aside {
+      align-self: start;
+      position: sticky;
+      top: 18px;
+      display: grid;
+      gap: 18px;
+      max-height: calc(100vh - 36px);
+      overflow: auto;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 18px;
+      background: var(--panel);
+    }
+
+    main {
+      min-width: 0;
+    }
+
+    .section {
+      display: grid;
+      gap: 10px;
+    }
+
+    .section + .section {
+      padding-top: 18px;
+      border-top: 1px solid var(--border);
+    }
+
+    .section-title {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .label-form {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+    }
+
+    .label-form button {
+      grid-column: 1 / -1;
+    }
+
+    .label-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .label-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px;
+      background: #fbfcfe;
+    }
+
+    .label-row.confirm-delete {
+      border-color: #fecdca;
+      background: var(--danger-bg);
+    }
+
+    .label-edit {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+    }
+
+    .label-actions {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .apply-label {
+      display: grid;
+      grid-template-columns: 18px minmax(0, 1fr);
+      gap: 9px;
+      align-items: center;
+      text-align: left;
+    }
+
+    .swatch {
+      width: 18px;
+      height: 18px;
+      border: 1px solid rgba(0, 0, 0, 0.16);
+      border-radius: 5px;
+    }
+
+    .danger {
+      color: var(--danger);
+    }
+
+    .confirm {
+      color: #fff;
+      border-color: var(--danger);
+      background: var(--danger);
+    }
+
+    .primary {
+      color: #fff;
+      border-color: var(--strong);
+      background: var(--strong);
+    }
+
+    .control-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .range-row {
+      display: grid;
+      gap: 5px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .toggle-row input {
+      width: 18px;
+      height: 18px;
+    }
+
+    .status {
+      min-height: 18px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .help {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .canvas-wrap {
+      max-width: var(--content-width);
+      margin-inline: auto;
+    }
+
+    .canvas {
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+      padding: 44px 54px;
+      background: var(--panel);
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 16px;
+      min-height: 28px;
+      margin-bottom: 26px;
+      align-items: center;
+    }
+
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: #344054;
+      font-size: 15px;
+      font-weight: 750;
+    }
+
+    .legend .swatch {
+      width: 16px;
+      height: 16px;
+    }
+
+    .vignette {
+      min-height: 420px;
+      outline: none;
+      font-family: var(--annotation-font);
+      font-size: var(--font-size);
+      line-height: var(--line-height);
+      letter-spacing: 0;
+      white-space: pre-wrap;
+      overflow-wrap: break-word;
+    }
+
+    .vignette:empty::before {
+      content: attr(data-placeholder);
+      color: #98a2b3;
+    }
+
+    mark.entity {
+      border-radius: 0.35em;
+      padding: 0.06em 0.18em 0.09em;
+      color: #111827;
+      box-decoration-break: clone;
+      -webkit-box-decoration-break: clone;
+    }
+
+    mark.entity::after {
+      content: attr(data-label);
+      display: inline-block;
+      margin-left: 0.35em;
+      transform: translateY(-0.08em);
+      border: 1px solid rgba(0, 0, 0, 0.11);
+      border-radius: 999px;
+      padding: 0.24em 0.42em;
+      color: rgba(17, 24, 39, 0.78);
+      background: rgba(255, 255, 255, 0.74);
+      font-size: 0.42em;
+      font-weight: 850;
+      line-height: 1;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    body.hide-tags mark.entity::after {
+      display: none;
+    }
+
+    .screenshot-hint {
+      margin: 14px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      text-align: center;
+    }
+
+    body.screenshot {
+      background: #fff;
+    }
+
+    body.screenshot header,
+    body.screenshot aside,
+    body.screenshot .screenshot-hint {
+      display: none;
+    }
+
+    body.screenshot .app {
+      display: block;
+      padding: 0;
+    }
+
+    body.screenshot main {
+      padding: 0;
+    }
+
+    body.screenshot .canvas-wrap {
+      max-width: none;
+      margin: 0;
+    }
+
+    body.screenshot .canvas {
+      border: 0;
+      border-radius: 0;
+      box-shadow: none;
+      padding: 48px 58px;
+    }
+
+    @media (hover) {
+      button:hover {
+        filter: brightness(0.98);
+      }
+    }
+
+    @media (max-width: 900px) {
+      header {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .app {
+        grid-template-columns: 1fr;
+        padding-inline: 18px;
+      }
+
+      aside {
+        position: static;
+        max-height: none;
+      }
+
+      .canvas {
+        padding: 34px 26px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>Text Annotator</h1>
+      <p class="subtitle">Create labels, highlight text, then switch to a clean canvas for screenshots.</p>
+    </div>
+    <button class="primary" id="screenshotModeBtn">Enter screenshot mode</button>
+  </header>
+
+  <div class="app">
+    <aside>
+      <section class="section" aria-labelledby="labels-title">
+        <h2 class="section-title" id="labels-title">Labels</h2>
+        <form class="label-form" id="labelForm">
+          <label>
+            <span class="section-title">Name</span>
+            <input id="newLabelName" type="text" maxlength="40" placeholder="Add a label">
+          </label>
+          <label>
+            <span class="section-title">Color</span>
+            <input id="newLabelColor" type="color" value="#c7d2fe">
+          </label>
+          <button class="primary" type="submit">Add label</button>
+        </form>
+        <div class="label-list" id="labelList"></div>
+      </section>
+
+      <section class="section" aria-labelledby="annotation-title">
+        <h2 class="section-title" id="annotation-title">Annotation</h2>
+        <div class="control-grid">
+          <button id="removeHighlightBtn">Remove selected</button>
+          <button id="clearHighlightsBtn" class="danger">Clear highlights</button>
+        </div>
+        <p class="status" id="status" role="status" aria-live="polite"></p>
+      </section>
+
+      <section class="section" aria-labelledby="text-title">
+        <h2 class="section-title" id="text-title">Text</h2>
+        <textarea id="sourceText" placeholder="Paste or type the text to annotate."></textarea>
+        <div class="control-grid">
+          <button class="primary" id="loadTextBtn">Load text</button>
+          <button id="resetBtn" class="danger">Reset tool</button>
+        </div>
+      </section>
+
+      <section class="section" aria-labelledby="layout-title">
+        <h2 class="section-title" id="layout-title">Layout</h2>
+        <label class="range-row" for="fontFamily">
+          <span>Font</span>
+          <select id="fontFamily">
+            <option value="system">System sans</option>
+            <option value="serif">System serif</option>
+            <option value="mono">System mono</option>
+            <option value="georgia">Georgia</option>
+            <option value="palatino">Palatino</option>
+            <option value="times">Times New Roman</option>
+            <option value="arial">Arial</option>
+            <option value="verdana">Verdana</option>
+          </select>
+        </label>
+        <div class="range-row">
+          <label for="fontSize">Text size: <span id="fontSizeValue">26</span> px</label>
+          <input id="fontSize" type="range" min="18" max="44" value="26">
+        </div>
+        <div class="range-row">
+          <label for="contentWidth">Canvas width: <span id="contentWidthValue">1120</span> px</label>
+          <input id="contentWidth" type="range" min="720" max="1600" step="20" value="1120">
+        </div>
+        <label class="toggle-row">
+          <input id="showTags" type="checkbox" checked>
+          <span>Show inline tags</span>
+        </label>
+      </section>
+
+      <section class="section">
+        <p class="help">
+          Select text in the canvas and click a label. Press Esc to leave screenshot mode.
+          Label edits update existing highlights; deleting a label removes its highlights.
+        </p>
+      </section>
+    </aside>
+
+    <main>
+      <div class="canvas-wrap">
+        <section class="canvas" id="canvas">
+          <div class="legend" id="legend"></div>
+          <article
+            id="vignette"
+            class="vignette"
+            contenteditable="true"
+            spellcheck="true"
+            data-placeholder="Load text from the sidebar or type directly here."
+          ></article>
+        </section>
+        <p class="screenshot-hint">
+          Adjust browser zoom, text size, or canvas width before taking the screenshot.
+        </p>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const storageKey = 'genericTextAnnotator:v1'
+    const defaultLabels = [
+      { id: 'label-key-point', name: 'Key point', color: '#c7d2fe' },
+      { id: 'label-evidence', name: 'Evidence', color: '#bbf7d0' },
+      { id: 'label-concern', name: 'Concern', color: '#fecaca' }
+    ]
+    const fontOptions = {
+      system: 'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+      serif: 'ui-serif, Georgia, Cambria, "Times New Roman", Times, serif',
+      mono: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace',
+      georgia: 'Georgia, "Times New Roman", Times, serif',
+      palatino: 'Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif',
+      times: '"Times New Roman", Times, serif',
+      arial: 'Arial, Helvetica, sans-serif',
+      verdana: 'Verdana, Geneva, sans-serif'
+    }
+    const defaultState = {
+      labels: defaultLabels,
+      sourceText: '',
+      annotationHtml: '',
+      fontFamily: 'system',
+      fontSize: 26,
+      contentWidth: 1120,
+      showTags: true
+    }
+
+    let state = loadState()
+    let savedRange = null
+    let saveTimer = null
+    let pendingDeleteId = null
+
+    const labelForm = document.getElementById('labelForm')
+    const labelList = document.getElementById('labelList')
+    const legend = document.getElementById('legend')
+    const sourceText = document.getElementById('sourceText')
+    const vignette = document.getElementById('vignette')
+    const fontFamily = document.getElementById('fontFamily')
+    const fontSize = document.getElementById('fontSize')
+    const fontSizeValue = document.getElementById('fontSizeValue')
+    const contentWidth = document.getElementById('contentWidth')
+    const contentWidthValue = document.getElementById('contentWidthValue')
+    const showTags = document.getElementById('showTags')
+    const status = document.getElementById('status')
+
+    function loadState() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(storageKey))
+        if (!saved || !Array.isArray(saved.labels)) return structuredClone(defaultState)
+
+        return {
+          ...structuredClone(defaultState),
+          ...saved,
+          labels: saved.labels.filter(label => label.id && label.name && label.color)
+        }
+      } catch (error) {
+        console.error(error)
+        return structuredClone(defaultState)
+      }
+    }
+
+    function saveStateNow() {
+      state.annotationHtml = vignette.innerHTML
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(state))
+      } catch (error) {
+        console.error(error)
+        setStatus('Autosave failed')
+      }
+    }
+
+    function scheduleSave() {
+      window.clearTimeout(saveTimer)
+      saveTimer = window.setTimeout(saveStateNow, 200)
+    }
+
+    function setStatus(message) {
+      status.textContent = message
+      if (!message) return
+
+      window.clearTimeout(setStatus.timer)
+      setStatus.timer = window.setTimeout(() => {
+        status.textContent = ''
+      }, 2200)
+    }
+
+    function makeId() {
+      return `label-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
+    }
+
+    function renderLabels() {
+      labelList.innerHTML = ''
+      legend.innerHTML = ''
+
+      state.labels.forEach(label => {
+        const row = document.createElement('div')
+        row.className = pendingDeleteId === label.id ? 'label-row confirm-delete' : 'label-row'
+        row.dataset.labelId = label.id
+
+        const editWrap = document.createElement('div')
+        editWrap.className = 'label-edit'
+
+        const nameInput = document.createElement('input')
+        nameInput.type = 'text'
+        nameInput.value = label.name
+        nameInput.maxLength = 40
+        nameInput.setAttribute('aria-label', `Label name: ${label.name}`)
+        nameInput.addEventListener('input', () => {
+          label.name = nameInput.value.trim() || 'Untitled'
+          updateMarksForLabel(label)
+          applyButton.querySelector('.label-action-text').textContent = `Apply ${label.name}`
+          renderLegend()
+          scheduleSave()
+        })
+
+        const colorInput = document.createElement('input')
+        colorInput.type = 'color'
+        colorInput.value = label.color
+        colorInput.setAttribute('aria-label', `Label color: ${label.name}`)
+        colorInput.addEventListener('input', () => {
+          label.color = colorInput.value
+          updateMarksForLabel(label)
+          applyButton.querySelector('.swatch').style.background = label.color
+          renderLegend()
+          scheduleSave()
+        })
+
+        editWrap.append(nameInput, colorInput)
+
+        const applyButton = document.createElement('button')
+        applyButton.className = 'apply-label'
+        applyButton.type = 'button'
+        applyButton.innerHTML = `<span class="swatch" style="background:${label.color}"></span><span class="label-action-text">Apply ${label.name}</span>`
+        applyButton.addEventListener('click', () => applyLabel(label))
+
+        const deleteButton = document.createElement('button')
+        deleteButton.className = pendingDeleteId === label.id ? 'confirm' : 'danger'
+        deleteButton.type = 'button'
+        deleteButton.textContent = pendingDeleteId === label.id ? 'Confirm delete' : 'Delete'
+        deleteButton.addEventListener('click', () => {
+          if (pendingDeleteId !== label.id) {
+            pendingDeleteId = label.id
+            renderLabels()
+            setStatus(`Confirm deletion of ${label.name}`)
+            return
+          }
+
+          deleteLabel(label.id)
+        })
+
+        const cancelButton = document.createElement('button')
+        cancelButton.type = 'button'
+        cancelButton.textContent = pendingDeleteId === label.id ? 'Cancel' : 'Keep'
+        cancelButton.disabled = pendingDeleteId !== label.id
+        cancelButton.addEventListener('click', () => {
+          pendingDeleteId = null
+          renderLabels()
+          setStatus('')
+        })
+
+        const actions = document.createElement('div')
+        actions.className = 'label-actions'
+        actions.append(applyButton, deleteButton)
+
+        if (pendingDeleteId === label.id) {
+          actions.append(cancelButton)
+        }
+
+        row.append(editWrap, actions)
+        labelList.appendChild(row)
+      })
+
+      renderLegend()
+    }
+
+    function renderLegend() {
+      legend.innerHTML = ''
+      state.labels.forEach(label => {
+        const item = document.createElement('span')
+        item.className = 'legend-item'
+        item.innerHTML = `<span class="swatch" style="background:${label.color}"></span><span>${label.name}</span>`
+        legend.appendChild(item)
+      })
+    }
+
+    function updateMarksForLabel(label) {
+      vignette.querySelectorAll(`mark.entity[data-label-id="${label.id}"]`).forEach(mark => {
+        mark.dataset.label = label.name
+        mark.style.background = label.color
+      })
+    }
+
+    function appendTextWithLineBreaks(element, text) {
+      text.split('\n').forEach((part, index) => {
+        if (index > 0) element.appendChild(document.createElement('br'))
+        element.appendChild(document.createTextNode(part))
+      })
+    }
+
+    function unwrapMark(mark) {
+      const fragment = document.createDocumentFragment()
+      while (mark.firstChild) fragment.appendChild(mark.firstChild)
+      mark.replaceWith(fragment)
+    }
+
+    function deleteLabel(labelId) {
+      const deleted = state.labels.find(label => label.id === labelId)
+      state.labels = state.labels.filter(label => label.id !== labelId)
+      vignette.querySelectorAll(`mark.entity[data-label-id="${labelId}"]`).forEach(mark => {
+        unwrapMark(mark)
+      })
+      vignette.normalize()
+      pendingDeleteId = null
+      renderLabels()
+      scheduleSave()
+      setStatus(deleted ? `Deleted ${deleted.name}` : 'Deleted label')
+    }
+
+    function getActiveRange() {
+      const selection = window.getSelection()
+      if (selection && selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0)
+        if (!range.collapsed && vignette.contains(range.commonAncestorContainer)) return range
+      }
+
+      if (savedRange && !savedRange.collapsed && vignette.contains(savedRange.commonAncestorContainer)) {
+        const nextSelection = window.getSelection()
+        nextSelection.removeAllRanges()
+        nextSelection.addRange(savedRange)
+        return savedRange
+      }
+
+      return null
+    }
+
+    function applyLabel(label) {
+      const range = getActiveRange()
+      if (!range) {
+        setStatus('Select text in the canvas first')
+        return
+      }
+
+      const selectedText = range.toString()
+      if (!selectedText.trim()) {
+        setStatus('Select text in the canvas first')
+        return
+      }
+
+      const mark = document.createElement('mark')
+      mark.className = 'entity'
+      mark.dataset.labelId = label.id
+      mark.dataset.label = label.name
+      mark.style.background = label.color
+      appendTextWithLineBreaks(mark, selectedText)
+
+      range.deleteContents()
+      range.insertNode(mark)
+      window.getSelection().removeAllRanges()
+      savedRange = null
+      scheduleSave()
+      setStatus(`Applied ${label.name}`)
+    }
+
+    function removeSelectedHighlight() {
+      const selection = window.getSelection()
+      if (!selection || selection.rangeCount === 0) return
+
+      let node = selection.anchorNode
+      if (node && node.nodeType === Node.TEXT_NODE) node = node.parentElement
+      const mark = node && node.closest ? node.closest('mark.entity') : null
+      if (!mark || !vignette.contains(mark)) {
+        setStatus('Place the cursor inside a highlight')
+        return
+      }
+
+      unwrapMark(mark)
+      vignette.normalize()
+      scheduleSave()
+      setStatus('Removed highlight')
+    }
+
+    function clearHighlights() {
+      const marks = vignette.querySelectorAll('mark.entity')
+      if (!marks.length) {
+        setStatus('No highlights to clear')
+        return
+      }
+
+      marks.forEach(mark => {
+        unwrapMark(mark)
+      })
+      vignette.normalize()
+      scheduleSave()
+      setStatus('Cleared highlights')
+    }
+
+    function loadTextIntoCanvas() {
+      state.sourceText = sourceText.value
+      vignette.textContent = sourceText.value
+      savedRange = null
+      scheduleSave()
+      setStatus('Loaded text')
+    }
+
+    function applyLayout() {
+      if (!fontOptions[state.fontFamily]) state.fontFamily = defaultState.fontFamily
+      document.documentElement.style.setProperty('--annotation-font', fontOptions[state.fontFamily])
+      document.documentElement.style.setProperty('--font-size', `${state.fontSize}px`)
+      document.documentElement.style.setProperty('--content-width', `${state.contentWidth}px`)
+      document.body.classList.toggle('hide-tags', !state.showTags)
+      fontFamily.value = state.fontFamily
+      fontSize.value = state.fontSize
+      fontSizeValue.textContent = state.fontSize
+      contentWidth.value = state.contentWidth
+      contentWidthValue.textContent = state.contentWidth
+      showTags.checked = state.showTags
+    }
+
+    function setScreenshotMode(enabled) {
+      document.body.classList.toggle('screenshot', enabled)
+      document.getElementById('screenshotModeBtn').textContent =
+        enabled ? 'Exit screenshot mode' : 'Enter screenshot mode'
+    }
+
+    function resetTool() {
+      state = structuredClone(defaultState)
+      localStorage.removeItem(storageKey)
+      pendingDeleteId = null
+      savedRange = null
+      sourceText.value = state.sourceText
+      vignette.innerHTML = ''
+      applyLayout()
+      renderLabels()
+      setStatus('Reset complete')
+    }
+
+    function hydrate() {
+      sourceText.value = state.sourceText
+      if (state.annotationHtml) {
+        vignette.innerHTML = state.annotationHtml
+      } else {
+        vignette.textContent = state.sourceText
+      }
+      applyLayout()
+      renderLabels()
+      state.labels.forEach(updateMarksForLabel)
+    }
+
+    labelForm.addEventListener('submit', event => {
+      event.preventDefault()
+      const nameInput = document.getElementById('newLabelName')
+      const colorInput = document.getElementById('newLabelColor')
+      const name = nameInput.value.trim()
+
+      if (!name) {
+        setStatus('Enter a label name')
+        nameInput.focus()
+        return
+      }
+
+      state.labels.push({
+        id: makeId(),
+        name,
+        color: colorInput.value
+      })
+      nameInput.value = ''
+      pendingDeleteId = null
+      renderLabels()
+      scheduleSave()
+      setStatus(`Added ${name}`)
+    })
+
+    document.addEventListener('selectionchange', () => {
+      const selection = window.getSelection()
+      if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return
+
+      const range = selection.getRangeAt(0)
+      if (vignette.contains(range.commonAncestorContainer)) {
+        savedRange = range.cloneRange()
+      }
+    })
+
+    vignette.addEventListener('input', scheduleSave)
+    sourceText.addEventListener('input', () => {
+      state.sourceText = sourceText.value
+      scheduleSave()
+    })
+
+    document.getElementById('loadTextBtn').addEventListener('click', loadTextIntoCanvas)
+    document.getElementById('removeHighlightBtn').addEventListener('click', removeSelectedHighlight)
+    document.getElementById('clearHighlightsBtn').addEventListener('click', clearHighlights)
+    document.getElementById('resetBtn').addEventListener('click', resetTool)
+    document.getElementById('screenshotModeBtn').addEventListener('click', () => {
+      setScreenshotMode(!document.body.classList.contains('screenshot'))
+    })
+
+    fontFamily.addEventListener('change', () => {
+      state.fontFamily = fontFamily.value
+      applyLayout()
+      scheduleSave()
+    })
+
+    fontSize.addEventListener('input', () => {
+      state.fontSize = Number(fontSize.value)
+      applyLayout()
+      scheduleSave()
+    })
+
+    contentWidth.addEventListener('input', () => {
+      state.contentWidth = Number(contentWidth.value)
+      applyLayout()
+      scheduleSave()
+    })
+
+    showTags.addEventListener('change', () => {
+      state.showTags = showTags.checked
+      applyLayout()
+      scheduleSave()
+    })
+
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape') setScreenshotMode(false)
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'b') {
+        event.preventDefault()
+      }
+    })
+
+    hydrate()
+  </script>
+</body>
+</html>
