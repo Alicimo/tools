@@ -37,15 +37,19 @@
           <div class="row g-3 align-items-end">
             <div class="col-6 col-lg-3">
               <label class="form-label">Squat 1RM (kg)</label>
-              <input id="rmSquat" type="number" class="form-control" min="1" step="0.25" value="109">
+              <input id="rmSquat" type="number" class="form-control" min="1" step="0.25" value="124">
             </div>
             <div class="col-6 col-lg-3">
               <label class="form-label">Bench 1RM (kg)</label>
-              <input id="rmBench" type="number" class="form-control" min="1" step="0.25" value="82">
+              <input id="rmBench" type="number" class="form-control" min="1" step="0.25" value="95">
             </div>
             <div class="col-6 col-lg-3">
-              <label class="form-label">Pull-up max reps</label>
-              <input id="maxPullupReps" type="number" class="form-control" min="1" step="1" value="9">
+              <label class="form-label">Pull-up 1RM (kg)</label>
+              <input id="rmPullup" type="number" class="form-control" min="1" step="0.25" value="122">
+            </div>
+            <div class="col-6 col-lg-3">
+              <label class="form-label">Bodyweight (kg)</label>
+              <input id="bodyWeight" type="number" class="form-control" min="1" step="0.25" value="95">
             </div>
             <div class="col-6 col-lg-3">
               <label class="form-label">Rounding (kg)</label>
@@ -75,7 +79,7 @@
                 <button id="btnReset" class="btn btn-outline-secondary btn-sm">Reset to defaults</button>
               </div>
               <div class="small-note mt-2">
-                Pull-ups are shown as bodyweight sets/reps.
+                Pull-ups use the same 1RM percentage progression as the barbell lifts.
               </div>
             </div>
           </div>
@@ -111,9 +115,10 @@
     // CONFIG (easy to alter)
     // ----------------------------
     const DEFAULTS = {
-      rmSquat: 118,
-      rmBench: 93,
-      maxPullupReps: 15,
+      rmSquat: 124,
+      rmBench: 95,
+      rmPullup: 122,
+      bodyWeight: 95,
       rounding: 0.5,
       barWeight: 20
     };
@@ -133,19 +138,18 @@
     const PROGRAM = [
       { key: "bench", name: "Bench Press", type: "1rm", rmInputId: "rmBench" },
       { key: "squat", name: "Back Squat", type: "1rm", rmInputId: "rmSquat" },
-      { key: "pullup", name: "Pull-up (Bodyweight)", type: "bw_reps", repsInputId: "maxPullupReps" }
+      { key: "pullup", name: "Pull-up", type: "weighted_pullup", rmInputId: "rmPullup" }
     ];
 
     // Week prescriptions (strength)
     // For 1RM lifts: percent + sets/reps.
-    // For BW pull-ups: sets + repTargetPct of max reps (matched to weight % for simplicity).
     const WEEKS = [
-      { id: 1, name: "Week 1", percent: 0.70, sets: "3–5", reps: "5",  pullupRepTargetPct: 0.70 },
-      { id: 2, name: "Week 2", percent: 0.80, sets: "3–5", reps: "5",  pullupRepTargetPct: 0.80 },
-      { id: 3, name: "Week 3", percent: 0.90, sets: "3–4", reps: "3",  pullupRepTargetPct: 0.90 },
-      { id: 4, name: "Week 4", percent: 0.75, sets: "3–5", reps: "5",  pullupRepTargetPct: 0.75 },
-      { id: 5, name: "Week 5", percent: 0.85, sets: "3–5", reps: "3",  pullupRepTargetPct: 0.85 },
-      { id: 6, name: "Week 6", percent: 0.95, sets: "3–4", reps: "1–2", pullupRepTargetPct: 0.95 }
+      { id: 1, name: "Week 1", percent: 0.70, sets: "3–5", reps: "5" },
+      { id: 2, name: "Week 2", percent: 0.80, sets: "3–5", reps: "5" },
+      { id: 3, name: "Week 3", percent: 0.90, sets: "3–4", reps: "3" },
+      { id: 4, name: "Week 4", percent: 0.75, sets: "3–5", reps: "5" },
+      { id: 5, name: "Week 5", percent: 0.85, sets: "3–5", reps: "3" },
+      { id: 6, name: "Week 6", percent: 0.95, sets: "3–4", reps: "1–2" }
     ];
 
     // ----------------------------
@@ -178,20 +182,22 @@
         pairs: Math.max(0, safeInt(input.value, 0))
       })).filter(p => p.size > 0);
 
-        return {
-          rmSquat: safeFloat(document.getElementById("rmSquat").value, DEFAULTS.rmSquat),
-          rmBench: safeFloat(document.getElementById("rmBench").value, DEFAULTS.rmBench),
-          maxPullupReps: safeInt(document.getElementById("maxPullupReps").value, DEFAULTS.maxPullupReps),
-          rounding: safeFloat(document.getElementById("rounding").value, DEFAULTS.rounding),
-          barWeight: safeFloat(document.getElementById("barWeight").value, DEFAULTS.barWeight),
-          availablePlates
-        };
-      }
+      return {
+        rmSquat: safeFloat(document.getElementById("rmSquat").value, DEFAULTS.rmSquat),
+        rmBench: safeFloat(document.getElementById("rmBench").value, DEFAULTS.rmBench),
+        rmPullup: safeFloat(document.getElementById("rmPullup").value, DEFAULTS.rmPullup),
+        bodyWeight: safeFloat(document.getElementById("bodyWeight").value, DEFAULTS.bodyWeight),
+        rounding: safeFloat(document.getElementById("rounding").value, DEFAULTS.rounding),
+        barWeight: safeFloat(document.getElementById("barWeight").value, DEFAULTS.barWeight),
+        availablePlates
+      };
+    }
 
     function setInputsFromSettings(s) {
       document.getElementById("rmSquat").value = s.rmSquat;
       document.getElementById("rmBench").value = s.rmBench;
-      document.getElementById("maxPullupReps").value = s.maxPullupReps;
+      document.getElementById("rmPullup").value = s.rmPullup;
+      document.getElementById("bodyWeight").value = s.bodyWeight;
       document.getElementById("rounding").value = String(s.rounding);
       document.getElementById("barWeight").value = s.barWeight;
       DEFAULT_PLATES.forEach(plate => {
@@ -205,6 +211,11 @@
     // ----------------------------
     function formatPlateList(usedPlates) {
       if (!usedPlates.length) return "No plates needed per side.";
+      return usedPlates.map(p => `${p.size}×${p.count}`).join(", ");
+    }
+
+    function formatHangingPlateList(usedPlates) {
+      if (!usedPlates.length) return "No hanging plates available.";
       return usedPlates.map(p => `${p.size}×${p.count}`).join(", ");
     }
 
@@ -311,6 +322,130 @@
       `;
     }
 
+    function buildHangingPlateBreakdown(addedWeight, availablePlates) {
+      const target = Math.max(0, addedWeight);
+      if (target <= 0) {
+        return { usedPlates: [], remainder: 0 };
+      }
+
+      const sorted = availablePlates
+        .map(plate => ({
+          size: plate.size,
+          count: Math.max(0, plate.pairs * 2)
+        }))
+        .filter(plate => plate.size > 0 && plate.count > 0)
+        .sort((a, b) => b.size - a.size);
+
+      if (!sorted.length) {
+        return { usedPlates: [], remainder: target };
+      }
+
+      const sizes = sorted.map(plate => plate.size);
+      const maxDecimals = sizes.reduce((acc, size) => {
+        const part = String(size).split(".")[1];
+        return Math.max(acc, part ? part.length : 0);
+      }, 0);
+      const scale = Math.pow(10, Math.min(6, maxDecimals));
+      if (!Number.isFinite(scale) || scale <= 0) {
+        return { usedPlates: [], remainder: target };
+      }
+
+      const sizeUnits = sizes.map(size => Math.round(size * scale));
+      const gcd = (a, b) => (b === 0 ? a : gcd(b, a % b));
+      const unit = sizeUnits.reduce((acc, size) => gcd(acc, size), sizeUnits[0] || 1);
+      const normalizedScale = scale / unit;
+      const normalizedSizes = sizeUnits.map(size => Math.round(size / unit));
+      const targetUnits = Math.floor(target * normalizedScale + 1e-6);
+      const dp = Array.from({ length: targetUnits + 1 }, () => null);
+      dp[0] = { plates: 0, prev: null, plateIndex: null, count: 0 };
+
+      sorted.forEach((plate, plateIndex) => {
+        const sizeUnits = normalizedSizes[plateIndex];
+        const maxCount = Math.max(0, plate.count);
+        const next = dp.slice();
+
+        for (let w = 0; w <= targetUnits; w += 1) {
+          const entry = dp[w];
+          if (!entry) continue;
+          for (let count = 1; count <= maxCount; count += 1) {
+            const newWeight = w + count * sizeUnits;
+            if (newWeight > targetUnits) break;
+            const newPlates = entry.plates + count;
+            const existing = next[newWeight];
+            if (!existing || newPlates < existing.plates) {
+              next[newWeight] = {
+                plates: newPlates,
+                prev: w,
+                plateIndex,
+                count
+              };
+            }
+          }
+        }
+
+        for (let w = 0; w <= targetUnits; w += 1) {
+          dp[w] = next[w];
+        }
+      });
+
+      let bestWeight = 0;
+      for (let w = targetUnits; w >= 0; w -= 1) {
+        if (dp[w]) {
+          bestWeight = w;
+          break;
+        }
+      }
+
+      const counts = new Array(sorted.length).fill(0);
+      let cursor = bestWeight;
+      while (cursor > 0) {
+        const entry = dp[cursor];
+        if (!entry || entry.prev === null || entry.plateIndex === null) break;
+        counts[entry.plateIndex] += entry.count;
+        cursor = entry.prev;
+      }
+
+      const usedPlates = [];
+      counts.forEach((count, idx) => {
+        if (count > 0) {
+          usedPlates.push({ size: sorted[idx].size, count });
+        }
+      });
+
+      const remainder = Math.max(0, target - bestWeight / normalizedScale);
+      return { usedPlates, remainder };
+    }
+
+    function buildPullupBreakdownHtml(totalWeight, bodyWeight, addedWeight, availablePlates) {
+      if (addedWeight <= 0) {
+        return `
+          <details class="plate-breakdown mt-1">
+            <summary>Pull-up load</summary>
+            <div class="mt-1">
+              <div>Bodyweight only.</div>
+              <div class="small-note">Bodyweight: ${fmtKg(bodyWeight)}. Total: ${fmtKg(totalWeight)}.</div>
+            </div>
+          </details>
+        `;
+      }
+
+      const breakdown = buildHangingPlateBreakdown(addedWeight, availablePlates);
+      const remainderNote = breakdown.remainder > 0.01
+        ? `<div class="text-danger">Unallocated: ${fmtKg(breakdown.remainder)}</div>`
+        : "";
+
+      return `
+        <details class="plate-breakdown mt-1">
+          <summary>Pull-up load</summary>
+          <div class="mt-1">
+            <div>${formatHangingPlateList(breakdown.usedPlates)}</div>
+            <div class="small-note">Bodyweight: ${fmtKg(bodyWeight)}. Added load: ${fmtKg(addedWeight)}.</div>
+            ${remainderNote}
+          </div>
+        </details>
+      `;
+    }
+
     function buildWeekTable(week, settings) {
       const rows = PROGRAM.map(ex => {
         if (ex.type === "1rm") {
@@ -329,14 +464,19 @@
           `;
         }
 
-        if (ex.type === "bw_reps") {
-          const maxReps = settings[ex.repsInputId];
-          const target = Math.round(maxReps * week.pullupRepTargetPct);
+        if (ex.type === "weighted_pullup") {
+          const rm = settings[ex.rmInputId];
+          const targetTotal = roundToStep(rm * week.percent, settings.rounding);
+          const totalWeight = Math.max(targetTotal, settings.bodyWeight);
+          const addedWeight = totalWeight - settings.bodyWeight;
           return `
             <tr>
               <td>${ex.name}</td>
-              <td class="mono text-nowrap">${week.sets}×${target}</td>
-              <td class="mono text-nowrap">Bodyweight</td>
+              <td class="mono text-nowrap">${week.sets}×${week.reps}</td>
+              <td class="mono text-nowrap">
+                <div>${fmtKg(totalWeight)}</div>
+                ${buildPullupBreakdownHtml(totalWeight, settings.bodyWeight, addedWeight, settings.availablePlates)}
+              </td>
             </tr>
           `;
         }
@@ -386,7 +526,8 @@
       // basic validation guardrails
       if (settings.rmSquat <= 0) settings.rmSquat = DEFAULTS.rmSquat;
       if (settings.rmBench <= 0) settings.rmBench = DEFAULTS.rmBench;
-      if (settings.maxPullupReps <= 0) settings.maxPullupReps = DEFAULTS.maxPullupReps;
+      if (settings.rmPullup <= 0) settings.rmPullup = DEFAULTS.rmPullup;
+      if (settings.bodyWeight <= 0) settings.bodyWeight = DEFAULTS.bodyWeight;
       if (settings.barWeight < 0) settings.barWeight = DEFAULTS.barWeight;
 
       WEEKS.forEach(week => {
@@ -412,7 +553,7 @@
     // ----------------------------
     // Wire up events
     // ----------------------------
-    ["rmSquat", "rmBench", "maxPullupReps", "rounding", "barWeight"].forEach(id => {
+    ["rmSquat", "rmBench", "rmPullup", "bodyWeight", "rounding", "barWeight"].forEach(id => {
       document.getElementById(id).addEventListener("input", renderAll);
       document.getElementById(id).addEventListener("change", renderAll);
     });

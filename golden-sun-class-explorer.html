@@ -1,0 +1,574 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Golden Sun Class Explorer</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #111827;
+      --panel-2: #1f2937;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --line: #374151;
+      --accent: #fbbf24;
+      --good: #86efac;
+      --warn: #fca5a5;
+      --tri: #c084fc;
+      --venus: #facc15;
+      --mars: #ef4444;
+      --jupiter: #a78bfa;
+      --mercury: #38bdf8;
+      --shadow: 0 18px 50px rgba(0,0,0,.35);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top left, #1e293b, var(--bg) 38rem);
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    header {
+      padding: 2.2rem clamp(1rem, 3vw, 3rem) 1rem;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      margin: 0 0 .5rem;
+      font-size: clamp(1.8rem, 4vw, 3rem);
+      letter-spacing: -0.04em;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      max-width: 78rem;
+      margin: 0;
+      font-size: 1rem;
+    }
+
+    main {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 1rem clamp(1rem, 3vw, 3rem) 3rem;
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 1rem;
+      background: rgba(17, 24, 39, .82);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 1rem;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(8px);
+      position: sticky;
+      top: .75rem;
+      z-index: 5;
+    }
+
+    .control-card { grid-column: span 3; min-width: 0; }
+
+    label {
+      display: block;
+      color: var(--muted);
+      font-size: .82rem;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      margin-bottom: .45rem;
+      font-weight: 700;
+    }
+
+    select, input[type="number"] {
+      width: 100%;
+      border: 1px solid var(--line);
+      background: var(--panel-2);
+      color: var(--text);
+      border-radius: 12px;
+      padding: .78rem .9rem;
+      font-size: 1rem;
+      outline: none;
+    }
+
+    select:focus, input:focus { border-color: var(--accent); }
+
+    .table-wrap {
+      margin-top: 1rem;
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: rgba(17, 24, 39, .9);
+      box-shadow: var(--shadow);
+    }
+
+    table { width: 100%; border-collapse: collapse; min-width: 1120px; }
+
+    th, td {
+      padding: .82rem .9rem;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+      white-space: nowrap;
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      background: #111827;
+      color: var(--muted);
+      font-size: .78rem;
+      text-transform: uppercase;
+      letter-spacing: .07em;
+      z-index: 2;
+    }
+
+    th.sortable {
+      cursor: pointer;
+      user-select: none;
+    }
+
+    th.sortable:hover,
+    th.sorted {
+      color: #fff7ed;
+    }
+
+    th.sortable::after {
+      content: "↕";
+      color: #64748b;
+      font-size: .68rem;
+      margin-left: .35rem;
+    }
+
+    th.sorted.asc::after { content: "↑"; color: var(--accent); }
+    th.sorted.desc::after { content: "↓"; color: var(--accent); }
+
+    tr:last-child td { border-bottom: 0; }
+    tbody tr:hover { background: rgba(251, 191, 36, .06); }
+
+    .class-name { font-weight: 800; color: #fff; display: block; }
+    .series {
+      color: var(--muted);
+      font-size: .85rem;
+      display: inline-flex;
+      align-items: center;
+      gap: .35rem;
+      margin-top: .1rem;
+    }
+
+    .series a {
+      color: #93c5fd;
+      text-decoration: none;
+    }
+
+    .series a:hover,
+    .series a:focus {
+      color: #bfdbfe;
+      text-decoration: underline;
+    }
+
+    .tri-label { color: var(--tri); font-weight: 800; }
+    .djinn-dots {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .28rem;
+      max-width: 9rem;
+    }
+
+    .djinn-dot {
+      width: .82rem;
+      height: .82rem;
+      border: 1px solid rgba(255, 255, 255, .38);
+      border-radius: 999px;
+      box-shadow: inset 0 -2px 3px rgba(0, 0, 0, .22);
+      flex: 0 0 auto;
+    }
+
+    .djinn-dot.venus { background: var(--venus); }
+    .djinn-dot.mars { background: var(--mars); }
+    .djinn-dot.jupiter { background: var(--jupiter); }
+    .djinn-dot.mercury { background: var(--mercury); }
+    .stat { font-variant-numeric: tabular-nums; }
+    .sum { font-weight: 850; color: var(--accent); }
+    .heal-yes { color: var(--good); font-weight: 850; }
+    .heal-no { color: var(--warn); font-weight: 850; }
+    .empty { padding: 2rem; color: var(--muted); text-align: center; }
+
+    @media (max-width: 980px) {
+      .control-card { grid-column: span 12; }
+    }
+
+    @media (max-width: 540px) {
+      .controls { position: static; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Golden Sun class explorer</h1>
+    <p class="subtitle">
+      Select a base character and total number of Set Djinn. The table shows mono-, dual-, and tri-element classes available at that progression point, with individual stat scaling factors, a simple total multiplier sum, and a binary healing-spell flag.
+    </p>
+  </header>
+
+  <main>
+    <section class="controls" aria-label="Class filters">
+      <div class="control-card">
+        <label for="characterSelect">Base character</label>
+        <select id="characterSelect"></select>
+      </div>
+      <div class="control-card">
+        <label for="djinnCount">Total Set Djinn</label>
+        <input id="djinnCount" type="number" min="0" max="9" value="2" />
+      </div>
+      <div class="control-card">
+        <label for="typeFilter">Class type</label>
+        <select id="typeFilter">
+          <option value="All">All</option>
+          <option value="Mono">Mono only</option>
+          <option value="Dual">Dual only</option>
+          <option value="Tri">Tri only</option>
+        </select>
+      </div>
+    </section>
+
+    <section class="table-wrap">
+      <table id="classTable">
+        <thead>
+          <tr>
+            <th class="sortable" data-sort="Class" aria-sort="none">Class</th>
+            <th class="sortable" data-sort="Type" aria-sort="none">Type</th>
+            <th>Djinn</th>
+            <th class="sortable" data-sort="HP" aria-sort="none">HP</th>
+            <th class="sortable" data-sort="PP" aria-sort="none">PP</th>
+            <th class="sortable" data-sort="ATK" aria-sort="none">ATK</th>
+            <th class="sortable" data-sort="DEF" aria-sort="none">DEF</th>
+            <th class="sortable" data-sort="AGI" aria-sort="descending">AGI</th>
+            <th class="sortable" data-sort="LCK" aria-sort="none">LCK</th>
+            <th class="sortable" data-sort="Total" aria-sort="none">Total</th>
+            <th class="sortable" data-sort="Healing" aria-sort="none">Healing?</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <div class="empty" id="emptyState" hidden>No classes found for this selection.</div>
+    </section>
+  </main>
+
+  <script>
+    const ELEMENTS = { Isaac: "Venus", Garet: "Mars", Ivan: "Jupiter", Mia: "Mercury" };
+    const statLabels = ["HP", "PP", "ATK", "DEF", "AGI", "LCK"];
+    const nativeSeriesName = {
+      Isaac: "Squire",
+      Garet: "Guard",
+      Ivan: "Wind Seer",
+      Mia: "Water Seer"
+    };
+    const seriesUrls = {
+      Squire: "https://goldensunwiki.net/wiki/Squire_class_series",
+      Guard: "https://goldensunwiki.net/wiki/Guard_class_series",
+      "Wind Seer": "https://goldensunwiki.net/wiki/Wind_Seer_class_series",
+      "Water Seer": "https://goldensunwiki.net/wiki/Water_Seer_class_series",
+      Brute: "https://goldensunwiki.net/wiki/Brute_class_series",
+      Hermit: "https://goldensunwiki.net/wiki/Hermit_class_series",
+      Page: "https://goldensunwiki.net/wiki/Page_class_series",
+      Swordsman: "https://goldensunwiki.net/wiki/Swordsman_class_series",
+      "Seer (Jupiter)": "https://goldensunwiki.net/wiki/Seer_%28Jupiter%29_class_series",
+      "Seer (Mercury)": "https://goldensunwiki.net/wiki/Seer_%28Mercury%29_class_series",
+      "Pilgrim (Jupiter)": "https://goldensunwiki.net/wiki/Pilgrim_%28Jupiter%29_class_series",
+      "Pilgrim (Mercury)": "https://goldensunwiki.net/wiki/Pilgrim_%28Mercury%29_class_series",
+      Ninja: "https://goldensunwiki.net/wiki/Ninja_class_series",
+      Dragoon: "https://goldensunwiki.net/wiki/Dragoon_class_series",
+      Samurai: "https://goldensunwiki.net/wiki/Samurai_class_series",
+      "White Mage": "https://goldensunwiki.net/wiki/White_Mage_class_series",
+      Medium: "https://goldensunwiki.net/wiki/Medium_class_series",
+      Ranger: "https://goldensunwiki.net/wiki/Ranger_class_series"
+    };
+
+    const nativeSeries = {
+      Isaac: [
+        { min: 0, max: 0, cls: "Squire", stats: [110,80,110,100,110,100], healing: false, notes: "Native Venus baseline." },
+        { min: 1, max: 1, cls: "Swordsman", stats: [120,80,110,100,110,100], healing: false, notes: "Native Venus physical line." },
+        { min: 2, max: 3, cls: "Knight", stats: [130,90,120,110,120,100], healing: false, notes: "Good balanced physical class." },
+        { min: 4, max: 5, cls: "Gallant", stats: [140,100,130,120,130,100], healing: false, notes: "Later native Venus tier." },
+        { min: 6, max: 9, cls: "Lord", stats: [170,130,140,130,140,100], healing: true, notes: "Late native Venus tier; utility/healing access improves." }
+      ],
+      Garet: [
+        { min: 0, max: 0, cls: "Guard", stats: [110,80,100,110,70,100], healing: false, notes: "Native Mars baseline; slow but sturdy." },
+        { min: 1, max: 1, cls: "Soldier", stats: [120,80,100,110,70,100], healing: false, notes: "Native Mars defensive physical line." },
+        { min: 2, max: 3, cls: "Warrior", stats: [130,90,110,120,80,100], healing: false, notes: "Sturdy but still slow." },
+        { min: 4, max: 5, cls: "Swordsman", stats: [150,100,120,130,90,100], healing: false, notes: "Later native Mars tier." },
+        { min: 6, max: 9, cls: "Hero", stats: [170,110,130,140,100,100], healing: false, notes: "Late native Mars tier." }
+      ],
+      Ivan: [
+        { min: 0, max: 0, cls: "Wind Seer", stats: [80,140,80,90,130,110], healing: false, notes: "Native Jupiter baseline; very fast caster." },
+        { min: 1, max: 1, cls: "Magician", stats: [80,140,80,90,130,110], healing: false, notes: "Fast native caster line." },
+        { min: 2, max: 3, cls: "Mage", stats: [90,150,90,100,140,110], healing: false, notes: "Fast caster with strong PP." },
+        { min: 4, max: 5, cls: "Sorcerer", stats: [100,160,100,110,150,110], healing: false, notes: "Later native Jupiter tier." },
+        { min: 6, max: 9, cls: "Warlock", stats: [110,170,110,120,160,110], healing: false, notes: "Late native Jupiter tier." }
+      ],
+      Mia: [
+        { min: 0, max: 0, cls: "Water Seer", stats: [90,130,90,100,80,120], healing: true, notes: "Native Mercury healer baseline." },
+        { min: 1, max: 1, cls: "Scribe", stats: [90,130,90,100,80,120], healing: true, notes: "Reliable early healing line." },
+        { min: 2, max: 3, cls: "Cleric", stats: [100,140,100,110,90,130], healing: true, notes: "Stable healer for boss safety." },
+        { min: 4, max: 5, cls: "Paragon", stats: [110,150,110,120,100,140], healing: true, notes: "Later native Mercury tier." },
+        { min: 6, max: 9, cls: "Angel", stats: [120,160,120,130,110,150], healing: true, notes: "Late native Mercury healer tier." }
+      ]
+    };
+
+    const dualSeries = [
+      { series: "Brute", allowed: ["Isaac","Garet"], elementsByCharacter: { Isaac: "Venus + Mars", Garet: "Mars + Venus" }, healing: false, notes: "Excellent physical line; especially improves Garet's agility.", tiers: [
+        { min:1,max:1,cls:"Brute",stats:[100,70,120,90,110,70] }, { min:2,max:3,cls:"Ruffian",stats:[120,80,130,100,120,70] }, { min:4,max:5,cls:"Savage",stats:[140,90,140,110,130,70] }, { min:6,max:9,cls:"Berserker",stats:[160,100,150,120,140,70] }
+      ]},
+      { series: "Hermit", allowed: ["Ivan","Mia"], elementsByCharacter: { Ivan: "Jupiter + Mercury", Mia: "Mercury + Jupiter" }, healing: true, notes: "Fast caster/support line; good healing/support direction.", tiers: [
+        { min:1,max:1,cls:"Hermit",stats:[80,140,80,90,130,120] }, { min:2,max:3,cls:"Elder",stats:[90,150,90,100,140,120] }, { min:4,max:5,cls:"Scholar",stats:[100,160,100,110,150,120] }, { min:6,max:9,cls:"Sage",stats:[110,170,110,120,160,120] }
+      ]},
+      { series: "Page", allowed: ["Garet","Ivan"], elementsByCharacter: { Garet: "Mars + Jupiter", Ivan: "Jupiter + Mars" }, healing: false, notes: "Caster-like Mars/Jupiter blend; good tempo for Garet compared with mono.", tiers: [
+        { min:1,max:1,cls:"Page",stats:[100,120,110,100,120,90] }, { min:2,max:3,cls:"Illusionist",stats:[120,130,120,110,130,90] }, { min:4,max:5,cls:"Enchanter",stats:[130,140,130,120,140,90] }, { min:6,max:9,cls:"Conjurer",stats:[140,150,140,130,150,90] }
+      ]},
+      { series: "Swordsman", allowed: ["Garet","Mia"], elementsByCharacter: { Garet: "Mars + Mercury", Mia: "Mercury + Mars" }, healing: true, notes: "Sturdier mixed line; healing/support access with moderate agility.", tiers: [
+        { min:1,max:1,cls:"Swordsman",stats:[100,90,110,110,90,120] }, { min:2,max:3,cls:"Defender",stats:[120,100,120,120,100,120] }, { min:4,max:5,cls:"Cavalier",stats:[140,110,130,130,110,120] }, { min:6,max:9,cls:"Dragoon",stats:[160,120,140,140,120,120] }
+      ]},
+      { series: "Seer", allowed: ["Isaac","Ivan","Mia"], elementsByCharacter: { Isaac: "Venus + Jupiter/Mercury", Ivan: "Jupiter + Venus", Mia: "Mercury + Venus" }, healing: true, notes: "Balanced support/caster line; useful when healing and utility matter.", tiers: [
+        { min:1,max:1,cls:"Seer",stats:[90,130,90,90,110,100] }, { min:2,max:3,cls:"Diviner",stats:[110,140,100,100,120,100] }, { min:4,max:5,cls:"Shaman",stats:[120,150,110,110,130,100] }, { min:6,max:9,cls:"Druid",stats:[130,160,120,120,140,100] }
+      ]},
+      { series: "Pilgrim", allowed: ["Garet","Ivan","Mia"], elementsByCharacter: { Garet: "Mars + Mercury/Jupiter", Ivan: "Jupiter + Mars", Mia: "Mercury + Mars" }, healing: true, notes: "Mobile support line with good agility; useful for tempo.", tiers: [
+        { min:1,max:1,cls:"Pilgrim",stats:[90,120,90,100,120,120] }, { min:2,max:3,cls:"Wanderer",stats:[110,130,100,110,130,120] }, { min:4,max:5,cls:"Ascetic",stats:[120,140,110,120,140,120] }, { min:6,max:9,cls:"Guru",stats:[130,150,120,130,150,120] }
+      ]}
+    ];
+
+    const triSeries = [
+      {
+        series: "Ninja", allowed: ["Isaac","Garet","Ivan"], healing: false,
+        notes: "Very fast offensive tri-element line; excellent for random encounters and tempo clears.",
+        req: { Isaac: { 6: "3 Jupiter + 3 Mars", 8: "4 Jupiter + 4 Mars", 9: "5 Jupiter + 4 Mars" }, Garet: { 6: "3 Jupiter + 3 Venus", 8: "4 Jupiter + 4 Venus", 9: "5 Jupiter + 4 Venus" }, Ivan: { 9: "6 Venus/Mars + 3 Mars/Venus" } },
+        tiers: [ { count:6, cls:"Ninja", stats:[160,140,150,120,170,80] }, { count:8, cls:"Disciple", stats:[180,150,160,130,180,80] }, { count:9, cls:"Master", stats:[200,160,170,140,190,80] } ]
+      },
+      {
+        series: "Dragoon", allowed: ["Isaac","Garet","Mia"], healing: true,
+        notes: "Slow but sturdy tri-element class with strong healing access, including Wish/Ply progression.",
+        req: { Isaac: { 6: "3 Mercury + 3 Mars", 8: "4 Mercury + 4 Mars", 9: "5 Mercury + 4 Mars" }, Garet: { 6: "3 Mercury + 3 Venus", 8: "4 Mercury + 4 Venus", 9: "5 Mercury + 4 Venus" }, Mia: { 9: "6 Venus/Mars + 3 Mars/Venus" } },
+        tiers: [ { count:6, cls:"Dragoon", stats:[160,130,140,140,110,130] }, { count:8, cls:"Templar", stats:[180,140,150,150,120,130] }, { count:9, cls:"Paladin", stats:[200,150,160,160,130,130] } ]
+      },
+      {
+        series: "Samurai", allowed: ["Isaac","Garet"], healing: false,
+        notes: "High-HP physical/buffing tri-element line; slower than Ninja but very strong and durable.",
+        req: { Isaac: { 7: "4 Mars + 3 Jupiter", 9: "5 Mars + 4 Jupiter" }, Garet: { 7: "4 Venus + 3 Jupiter", 9: "5 Venus + 4 Jupiter" } },
+        tiers: [ { count:7, cls:"Samurai", stats:[190,130,150,140,140,90] }, { count:9, cls:"Ronin", stats:[210,140,160,150,150,90] } ]
+      },
+      {
+        series: "White Mage", allowed: ["Ivan","Mia"], healing: true,
+        notes: "Dedicated endgame healer/support class with Wish and Revive; excellent for bosses.",
+        req: { Ivan: { 7: "4 Mercury + 3 Venus", 9: "5 Mercury + 4 Venus" }, Mia: { 7: "4 Jupiter + 3 Venus", 9: "5 Jupiter + 4 Venus" } },
+        tiers: [ { count:7, cls:"White Mage", stats:[150,180,130,130,150,130] }, { count:9, cls:"Pure Mage", stats:[170,190,140,140,160,130] } ]
+      },
+      {
+        series: "Medium", allowed: ["Isaac","Ivan","Mia"], healing: true,
+        notes: "High-PP tri-element caster with Cure/Revive; lacks the Wish line of White Mage.",
+        req: { Isaac: { 9: "6 Mercury/Jupiter + 3 Jupiter/Mercury" }, Ivan: { 6: "3 Venus + 3 Mercury", 8: "4 Venus + 4 Mercury", 9: "5 Venus + 4 Mercury" }, Mia: { 6: "3 Venus + 3 Jupiter", 8: "4 Venus + 4 Jupiter", 9: "5 Venus + 4 Jupiter" } },
+        tiers: [ { count:6, cls:"Medium", stats:[130,170,120,120,150,90] }, { count:8, cls:"Conjurer", stats:[150,180,130,130,160,90] }, { count:9, cls:"Dark Mage", stats:[170,190,140,140,170,90] } ]
+      },
+      {
+        series: "Ranger", allowed: ["Garet","Ivan","Mia"], healing: false,
+        notes: "Fast high-PP tri-element caster/utility line; strong wide-area damage but no core healing line.",
+        req: { Garet: { 9: "6 Mercury/Jupiter + 3 Jupiter/Mercury" }, Ivan: { 6: "3 Mars + 3 Mercury", 8: "4 Mars + 4 Mercury", 9: "5 Mars + 4 Mercury" }, Mia: { 6: "3 Mars + 3 Jupiter", 8: "4 Mars + 4 Jupiter", 9: "5 Mars + 4 Jupiter" } },
+        tiers: [ { count:6, cls:"Ranger", stats:[130,160,120,120,160,120] }, { count:8, cls:"Bard", stats:[150,170,130,130,170,120] }, { count:9, cls:"Warlock", stats:[170,180,140,140,180,120] } ]
+      }
+    ];
+
+    let sortKey = "AGI";
+    let sortDirection = "desc";
+    const characterSelect = document.getElementById("characterSelect");
+    const djinnCount = document.getElementById("djinnCount");
+    const typeFilter = document.getElementById("typeFilter");
+    const tbody = document.querySelector("#classTable tbody");
+    const emptyState = document.getElementById("emptyState");
+    const sortableHeaders = document.querySelectorAll("th.sortable");
+
+    for (const character of Object.keys(ELEMENTS)) {
+      const option = document.createElement("option");
+      option.value = character;
+      option.textContent = `${character} (${ELEMENTS[character]})`;
+      characterSelect.appendChild(option);
+    }
+
+    characterSelect.addEventListener("change", render);
+    djinnCount.addEventListener("input", render);
+    typeFilter.addEventListener("change", render);
+    sortableHeaders.forEach(header => {
+      header.addEventListener("click", () => {
+        const nextSortKey = header.dataset.sort;
+        if (nextSortKey === sortKey) {
+          sortDirection = sortDirection === "desc" ? "asc" : "desc";
+        } else {
+          sortKey = nextSortKey;
+          sortDirection = ["Class", "Type"].includes(sortKey) ? "asc" : "desc";
+        }
+        render();
+      });
+    });
+
+    function clampDjinn(n) {
+      if (Number.isNaN(n)) return 0;
+      return Math.max(0, Math.min(9, n));
+    }
+
+    function tierForCount(tiers, count) { return tiers.find(t => count >= t.min && count <= t.max) || null; }
+    function pct(n) { return `${n}%`; }
+    function total(stats) { return stats.reduce((a, b) => a + b, 0); }
+
+    function makeRow({ type, series, seriesUrl, cls, requirement, stats, healing, notes }) {
+      return { type, series, seriesUrl, cls, requirement, stats, total: total(stats), healing, notes };
+    }
+
+    function triRequirement(line, character, tier) {
+      const reqs = line.req[character] || {};
+      return reqs[tier.count] || null;
+    }
+
+    function dualRequirement(line, character, count) {
+      const setup = line.elementsByCharacter[character] || "";
+      const offElements = setup
+        .split("+")
+        .slice(1)
+        .join("+")
+        .trim();
+      return `${count} ${offElements || "off-element"}`;
+    }
+
+    function dualSeriesName(line, character) {
+      if (line.series === "Seer") {
+        return character === "Mia" ? "Seer (Mercury)" : "Seer (Jupiter)";
+      }
+      if (line.series === "Pilgrim") {
+        return character === "Mia" ? "Pilgrim (Mercury)" : "Pilgrim (Jupiter)";
+      }
+      return line.series;
+    }
+
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, char => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+      })[char]);
+    }
+
+    function dotStyle(elements) {
+      if (elements.length === 1) return "";
+      const colors = elements.map(element => `var(--${element.toLowerCase()})`);
+      return ` style="background: linear-gradient(135deg, ${colors[0]} 0 50%, ${colors[1]} 50% 100%)"`;
+    }
+
+    function renderDjinnDots(requirement) {
+      const dots = [];
+      for (const part of requirement.split("+")) {
+        const match = part.trim().match(/^(\d+)\s+([A-Za-z/]+)$/);
+        if (!match) continue;
+        const count = Number(match[1]);
+        const elements = match[2].split("/");
+        for (let i = 0; i < count; i += 1) {
+          const classes = elements.map(element => element.toLowerCase()).join(" ");
+          dots.push(`<span class="djinn-dot ${classes}"${dotStyle(elements)}></span>`);
+        }
+      }
+      return `<div class="djinn-dots" title="${escapeHtml(requirement)}" aria-label="${escapeHtml(requirement)}">${dots.join("")}</div>`;
+    }
+
+    function updateSortHeaders() {
+      sortableHeaders.forEach(header => {
+        const isActive = header.dataset.sort === sortKey;
+        header.classList.toggle("sorted", isActive);
+        header.classList.toggle("asc", isActive && sortDirection === "asc");
+        header.classList.toggle("desc", isActive && sortDirection === "desc");
+        header.setAttribute("aria-sort", isActive ? (sortDirection === "asc" ? "ascending" : "descending") : "none");
+      });
+    }
+
+    function availableRows(character, count) {
+      const rows = [];
+      const nativeTier = tierForCount(nativeSeries[character], count);
+      if (nativeTier) rows.push(makeRow({
+        type: "Mono", series: nativeSeriesName[character], seriesUrl: seriesUrls[nativeSeriesName[character]], cls: nativeTier.cls,
+        requirement: `${count} ${ELEMENTS[character]}`,
+        stats: nativeTier.stats, healing: nativeTier.healing, notes: nativeTier.notes
+      }));
+
+      for (const line of dualSeries) {
+        if (!line.allowed.includes(character)) continue;
+        const tier = tierForCount(line.tiers, count);
+        if (!tier) continue;
+        const series = dualSeriesName(line, character);
+        rows.push(makeRow({
+          type: "Dual", series, seriesUrl: seriesUrls[series], cls: tier.cls,
+          requirement: dualRequirement(line, character, count), stats: tier.stats, healing: line.healing, notes: line.notes
+        }));
+      }
+
+      for (const line of triSeries) {
+        if (!line.allowed.includes(character)) continue;
+        for (const tier of line.tiers) {
+          if (tier.count !== count) continue;
+          const requirement = triRequirement(line, character, tier);
+          if (!requirement) continue;
+          rows.push(makeRow({
+            type: "Tri", series: line.series, seriesUrl: seriesUrls[line.series], cls: tier.cls,
+            requirement, stats: tier.stats, healing: line.healing, notes: line.notes
+          }));
+        }
+      }
+
+      const filter = typeFilter.value;
+      return filter === "All" ? rows : rows.filter(r => r.type === filter);
+    }
+
+    function sortRows(rows) {
+      const typeRank = { Tri: 0, Dual: 1, Mono: 2 };
+      const idx = statLabels.indexOf(sortKey);
+      const direction = sortDirection === "asc" ? 1 : -1;
+      return [...rows].sort((a, b) => {
+        let result = 0;
+        if (sortKey === "Class") result = a.cls.localeCompare(b.cls) || a.series.localeCompare(b.series);
+        if (sortKey === "Type") result = typeRank[a.type] - typeRank[b.type] || a.cls.localeCompare(b.cls);
+        if (sortKey === "Total") result = a.total - b.total || a.stats[4] - b.stats[4];
+        if (sortKey === "Healing") result = Number(a.healing) - Number(b.healing) || a.cls.localeCompare(b.cls);
+        if (idx >= 0) result = a.stats[idx] - b.stats[idx] || a.total - b.total;
+        if (result !== 0) return result * direction;
+        return a.cls.localeCompare(b.cls);
+      });
+    }
+
+    function render() {
+      const character = characterSelect.value;
+      const count = clampDjinn(parseInt(djinnCount.value, 10));
+      djinnCount.value = count;
+      const rows = sortRows(availableRows(character, count));
+      tbody.innerHTML = "";
+      emptyState.hidden = rows.length > 0;
+      updateSortHeaders();
+
+      for (const row of rows) {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td><span class="class-name">${escapeHtml(row.cls)}</span><span class="series"><a href="${row.seriesUrl}" target="_blank" rel="noopener noreferrer">${escapeHtml(row.series)} series</a></span></td>
+          <td><span class="${row.type === "Tri" ? "tri-label" : ""}">${row.type}</span></td>
+          <td>${renderDjinnDots(row.requirement)}</td>
+          ${row.stats.map(v => `<td class="stat">${pct(v)}</td>`).join("")}
+          <td class="sum">${row.total}</td>
+          <td class="${row.healing ? "heal-yes" : "heal-no"}">${row.healing ? "Yes" : "No"}</td>
+          <td>${escapeHtml(row.notes)}</td>`;
+        tbody.appendChild(tr);
+      }
+    }
+
+    render();
+  </script>
+</body>
+</html>
