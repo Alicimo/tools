@@ -6,61 +6,121 @@
   <title>Trash Collection Calendar (ICS)</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
 
-  <!-- Bootstrap 5 -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
-
+  <!-- Windows 98 theme -->
+  <link href="resources/98-css/98.css" rel="stylesheet" />
   <!-- FullCalendar (no React) -->
   <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css" rel="stylesheet" />
   <style>
-    body { background: #f8f9fa; }
-    #calendar { background: #fff; border-radius: 0.75rem; padding: 1rem; }
-    .fc { font-size: 0.95rem; }
-    .muted-note { color: #6c757d; }
+    :root { color-scheme: light; }
+    * { box-sizing: border-box; }
+    html, body { min-height: 100%; margin: 0; }
+    body { background: #008080; padding: 16px; }
+    .app-window { max-width: 1180px; margin: 0 auto; }
+    .window-body { padding: 4px; }
+    .app-header { margin-bottom: 12px; }
+    .app-title { font-size: 20px; margin: 0 0 4px; }
+    .muted-note { color: #404040; }
+    .next-banner { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 12px; }
+    .next-banner .status-bar-field { flex: 1 1 280px; margin: 0; }
+    .error-panel {
+      background: #fff;
+      border: 2px inset #dfdfdf;
+      color: #800000;
+      margin-bottom: 12px;
+      padding: 8px;
+    }
+    .is-hidden { display: none; }
+    .content-grid {
+      align-items: start;
+      display: grid;
+      gap: 12px;
+      grid-template-columns: minmax(0, 3fr) minmax(220px, 1fr);
+    }
+    .panel { margin: 0; min-width: 0; }
+    .sunken-panel { background: #fff; }
+    .calendar-surface { min-width: 0; padding: 8px; }
+    .legend-list { padding: 8px; }
+    .legend-row { align-items: center; display: flex; gap: 8px; margin-bottom: 4px; }
+    .status-chip {
+      display: inline-block;
+      margin-right: 6px;
+      padding: 2px 5px;
+    }
+    .status-chip-success { background: #008000; color: #fff; }
+    .status-chip-primary { background: #000080; color: #fff; }
+    .app-footer { margin-top: 12px; }
+
+    /* Keep FullCalendar's controls and view styling independent of 98.css. */
+    .calendar-surface .fc { font-family: Arial, sans-serif; font-size: .95rem; }
+    .calendar-surface .fc button {
+      border-radius: .25rem;
+      box-shadow: none;
+      font-family: Arial, sans-serif;
+      min-height: auto;
+      min-width: auto;
+      padding: .4em .65em;
+      text-shadow: none;
+    }
+    .calendar-surface .fc button:not(:disabled):active { box-shadow: none; }
+    .calendar-surface .fc table,
+    .calendar-surface .fc th,
+    .calendar-surface .fc td { font-family: Arial, sans-serif; }
+
+    @media (max-width: 700px) {
+      body { padding: 8px; }
+      .content-grid { grid-template-columns: 1fr; }
+      .calendar-surface { padding: 4px; }
+      .calendar-surface .fc .fc-toolbar { gap: 8px; flex-wrap: wrap; }
+      .calendar-surface .fc .fc-toolbar-title { font-size: 1rem; }
+      .calendar-surface .fc button { min-height: 36px; padding: 7px 10px; }
+    }
   </style>
 </head>
 <body>
-  <div class="container py-4">
-    <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-3">
+  <main class="window app-window">
+    <div class="title-bar">
+      <div class="title-bar-text">Trash Collection Calendar (ICS)</div>
+    </div>
+    <div class="window-body">
+      <header class="app-header">
       <div>
-        <h1 class="h3 mb-1">Trash Collection Calendar</h1>
+        <h1 class="app-title">Trash Collection Calendar</h1>
         <div class="muted-note">
           Loads a local <code>.ics</code> file and renders day-long collection events.
         </div>
       </div>
 
-    </div>
+      </header>
 
-    <div id="nextBanner" class="alert alert-secondary d-flex align-items-center justify-content-between flex-wrap gap-2" role="alert">
-      <div>
+    <div id="nextBanner" class="status-bar next-banner" role="alert">
+      <p class="status-bar-field">
         <strong>Next collection:</strong>
         <span id="nextInfo">Loading…</span>
-      </div>
-      <div class="small muted-note">
+      </p>
+      <p class="status-bar-field muted-note">
         Today: <span id="todayInfo"></span>
-      </div>
+      </p>
     </div>
 
-    <div id="errorBox" class="alert alert-danger d-none" role="alert"></div>
+    <div id="errorBox" class="error-panel is-hidden" role="alert"></div>
 
-    <div class="row g-3">
-      <div class="col-12 col-lg-9">
-        <div id="calendar"></div>
-      </div>
-      <div class="col-12 col-lg-3">
-        <div class="card shadow-sm">
-          <div class="card-body">
-            <h2 class="h6 mb-2">Legend</h2>
-            <div id="legend" class="small"></div>
-          </div>
-        </div>
-      </div>
-    </div>
+    <section class="content-grid">
+      <fieldset class="panel calendar-panel">
+        <legend>Calendar</legend>
+        <div id="calendar" class="sunken-panel calendar-surface"></div>
+      </fieldset>
+      <fieldset class="panel legend-panel">
+        <legend>Legend</legend>
+        <div id="legend" class="sunken-panel legend-list"></div>
+      </fieldset>
+    </section>
 
-    <footer class="pt-4 small muted-note">
+    <footer class="app-footer muted-note">
       Uses <a href="https://fullcalendar.io/" target="_blank" rel="noreferrer">FullCalendar</a> for rendering and
       <a href="https://github.com/mozilla-comm/ical.js" target="_blank" rel="noreferrer">ical.js</a> for parsing.
     </footer>
-  </div>
+    </div>
+  </main>
 
   <!-- FullCalendar global bundle -->
   <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
@@ -102,12 +162,12 @@
     function showError(msg) {
       const box = document.getElementById("errorBox");
       box.textContent = msg;
-      box.classList.remove("d-none");
+      box.classList.remove("is-hidden");
     }
 
     function hideError() {
       const box = document.getElementById("errorBox");
-      box.classList.add("d-none");
+      box.classList.add("is-hidden");
       box.textContent = "";
     }
 
@@ -209,11 +269,11 @@
         nextDay.toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric" });
 
       if (deltaDays === 0) {
-        nextInfoEl.innerHTML = `<span class="badge text-bg-success me-2">Today</span> ${when} — <strong>${type}</strong>`;
+        nextInfoEl.innerHTML = `<span class="status-chip status-chip-success">Today</span> ${when} — <strong>${type}</strong>`;
       } else if (deltaDays === 1) {
-        nextInfoEl.innerHTML = `<span class="badge text-bg-primary me-2">In 1 day</span> ${when} — <strong>${type}</strong>`;
+        nextInfoEl.innerHTML = `<span class="status-chip status-chip-primary">In 1 day</span> ${when} — <strong>${type}</strong>`;
       } else {
-        nextInfoEl.innerHTML = `<span class="badge text-bg-primary me-2">In ${deltaDays} days</span> ${when} — <strong>${type}</strong>`;
+        nextInfoEl.innerHTML = `<span class="status-chip status-chip-primary">In ${deltaDays} days</span> ${when} — <strong>${type}</strong>`;
       }
     }
 
@@ -227,7 +287,7 @@
       el.innerHTML = "";
       for (const t of types) {
         const row = document.createElement("div");
-        row.className = "d-flex align-items-center gap-2 mb-1";
+        row.className = "legend-row";
         const swatch = document.createElement("span");
         swatch.style.width = "12px";
         swatch.style.height = "12px";
@@ -317,6 +377,5 @@
     loadIcsAndRender();
   </script>
 
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

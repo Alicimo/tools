@@ -5,142 +5,103 @@
   <title>Podcast Episode Search</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link
-    href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&display=swap"
-    rel="stylesheet"
-  >
-  <link
-    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
-    rel="stylesheet"
-  >
+  <link href="resources/98-css/98.css" rel="stylesheet">
   <style>
     :root {
       color-scheme: light;
-      --ink: #1c1f26;
-      --muted: #5b6472;
-      --surface: #ffffff;
-      --surface-strong: #f7f4ef;
-      --accent: #0f6ba8;
-      --accent-strong: #0a4f7a;
-      --accent-soft: #e4f0f7;
+      --panel-gap: 12px;
     }
+    *, *::before, *::after { box-sizing: border-box; }
     body {
-      font-family: 'Manrope', 'Segoe UI', sans-serif;
-      color: var(--ink);
-      background:
-        radial-gradient(circle at top right, rgba(15, 107, 168, 0.16), transparent 40%),
-        radial-gradient(circle at 20% 20%, rgba(255, 193, 7, 0.12), transparent 45%),
-        #f2f4f8;
       min-height: 100vh;
+      margin: 0;
+      padding: 16px;
     }
-    .hero {
-      background: linear-gradient(120deg, #0f6ba8 0%, #1c9bb3 50%, #3c8b74 100%);
-      color: #fff;
+    .app-window { width: min(960px, 100%); margin: 0 auto; }
+    .window-body { padding: 8px; }
+    .app-heading { margin: 0 0 4px; font-size: 1.5rem; }
+    .app-description { margin: 0 0 12px; }
+    .search-panel { padding: 10px; }
+    .search-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
-    .hero h1 {
-      letter-spacing: -0.02em;
-    }
-    .hero p {
-      color: rgba(255, 255, 255, 0.85);
-    }
-    .search-card {
-      background: var(--surface);
-      border: 1px solid rgba(15, 107, 168, 0.15);
-      box-shadow: 0 1.5rem 3rem rgba(15, 107, 168, 0.08);
-    }
-    .form-control:focus {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 0.25rem rgba(15, 107, 168, 0.2);
-    }
-    .random-button {
-      white-space: nowrap;
-    }
-    .result-card {
-      border: 1px solid rgba(28, 31, 38, 0.08);
-      background: var(--surface);
+    .search-row label { flex: 0 0 auto; }
+    .search-row input { flex: 1 1 auto; min-width: 0; }
+    .random-button { white-space: nowrap; }
+    .status-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      margin-top: 8px;
     }
     .result-meta {
-      color: var(--muted);
-      font-size: 0.9rem;
+      color: #444;
+      font-size: 11px;
     }
-    .snippet {
-      color: #3b4452;
+    .results-list { display: flex; flex-direction: column; gap: var(--panel-gap); margin-top: var(--panel-gap); }
+    .result-card {
+      padding: 10px;
     }
+    .result-title { margin: 0 0 6px; font-size: 1.25rem; }
+    .snippet { margin: 0 0 10px; color: #333; }
     .audio-actions {
       display: flex;
       flex-direction: column;
-      gap: 0.5rem;
+      gap: 6px;
     }
+    audio { width: 100%; }
     .audio-link {
-      color: var(--accent-strong);
-      text-decoration: none;
-      font-weight: 600;
+      color: #000080;
     }
-    .audio-link:hover {
-      text-decoration: underline;
-    }
-    @media (max-width: 768px) {
-      .audio-actions {
-        gap: 0.75rem;
-      }
-    }
-    @media (max-width: 576px) {
-      .search-card .input-group {
-        flex-wrap: wrap;
-      }
-      .search-card .input-group > .form-control {
-        min-width: 0;
-      }
-      .random-button {
-        flex: 1 0 100%;
-        margin-top: -1px;
-        width: 100%;
-      }
+    @media (max-width: 600px) {
+      body { padding: 8px; }
+      .window-body { padding: 6px; }
+      .search-row { align-items: stretch; flex-direction: column; }
+      .search-row input,
+      .random-button { min-height: 36px; width: 100%; }
+      .status-row { align-items: flex-start; flex-direction: column; }
+      button, input { min-height: 32px; }
     }
   </style>
 </head>
 <body>
-  <header class="hero">
-    <div class="container py-5">
-      <div>
-        <h1 class="display-6 fw-semibold mb-2">Podcast Episode Search</h1>
-        <p class="mb-0">
+  <main class="window app-window">
+    <div class="title-bar">
+      <div class="title-bar-text">Podcast Episode Search</div>
+    </div>
+    <div class="window-body">
+      <header>
+        <h1 class="app-heading">Podcast Episode Search</h1>
+        <p class="app-description">
           Search the complete Thomas and Friends Storytime archive by title and description.
         </p>
-      </div>
+      </header>
+
+      <section class="sunken-panel search-panel" aria-label="Episode search">
+        <form id="searchForm" role="search">
+          <div class="search-row">
+            <label for="searchInput">Search</label>
+            <input
+              id="searchInput"
+              type="search"
+              placeholder="Type a title, character, or story detail"
+              autocomplete="off"
+            >
+            <button id="randomButton" class="random-button" type="button" disabled>
+              Play random
+            </button>
+          </div>
+        </form>
+        <div class="status-row">
+          <div id="status" class="result-meta">Loading episodes…</div>
+          <div id="meta" class="result-meta"></div>
+        </div>
+      </section>
+
+      <section id="results" class="results-list" aria-live="polite"></section>
     </div>
-  </header>
-
-  <main class="container py-5">
-    <section class="search-card rounded-4 p-4 p-lg-5 mb-4">
-      <label class="visually-hidden" for="searchInput">Search episodes</label>
-      <div class="input-group input-group-lg">
-        <span class="input-group-text">Search</span>
-        <input
-          id="searchInput"
-          class="form-control"
-          type="search"
-          placeholder="Type a title, character, or story detail"
-          autocomplete="off"
-        >
-        <button
-          id="randomButton"
-          class="btn btn-primary random-button"
-          type="button"
-          disabled
-        >
-          Play random
-        </button>
-      </div>
-      <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between mt-3 gap-2">
-        <div id="status" class="result-meta">Loading episodes…</div>
-        <div id="meta" class="result-meta"></div>
-      </div>
-    </section>
-
-    <section id="results" class="d-flex flex-column gap-3" aria-live="polite"></section>
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0"></script>
@@ -156,6 +117,7 @@
     const statusEl = document.getElementById('status')
     const metaEl = document.getElementById('meta')
     const randomButton = document.getElementById('randomButton')
+    const searchForm = document.getElementById('searchForm')
     const MAX_SNIPPET = 240
 
     const setStatus = (message) => {
@@ -219,12 +181,12 @@
       resultsEl.replaceChildren()
       if (!items.length) {
         const emptyCard = document.createElement('div')
-        emptyCard.className = 'card result-card p-4'
+        emptyCard.className = 'result-card sunken-panel'
         const emptyTitle = document.createElement('h2')
-        emptyTitle.className = 'h5 mb-2'
+        emptyTitle.className = 'result-title'
         emptyTitle.textContent = query ? 'No matches found' : 'Type to search'
         const emptyText = document.createElement('p')
-        emptyText.className = 'snippet mb-0'
+        emptyText.className = 'snippet'
         emptyText.textContent = query
           ? 'Try another keyword or a character name from the story.'
           : 'Start typing to search episode titles and descriptions.'
@@ -237,21 +199,21 @@
 
       items.forEach((item) => {
         const card = document.createElement('article')
-        card.className = 'card result-card p-4'
+        card.className = 'result-card sunken-panel'
 
         const title = document.createElement('h2')
-        title.className = 'h5 mb-2'
+        title.className = 'result-title'
         title.textContent = item.title || 'Untitled episode'
 
         const meta = document.createElement('div')
-        meta.className = 'result-meta mb-3'
+        meta.className = 'result-meta'
         const duration = formatDuration(item.duration)
         meta.textContent = duration
           ? `${formatDate(item.published)} · ${duration}`
           : formatDate(item.published)
 
         const snippet = document.createElement('p')
-        snippet.className = 'snippet mb-3'
+        snippet.className = 'snippet'
         snippet.textContent = buildSnippet(item.description, query)
 
         const audioWrap = document.createElement('div')
@@ -414,6 +376,11 @@
     }
 
     searchInput.addEventListener('input', handleInput)
+    searchForm.addEventListener('submit', (event) => {
+      event.preventDefault()
+      window.clearTimeout(debounceTimer)
+      runSearch(searchInput.value)
+    })
     randomButton.addEventListener('click', playRandomEpisode)
     loadEpisodes()
   </script>
