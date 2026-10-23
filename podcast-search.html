@@ -30,6 +30,85 @@
     .search-row label { flex: 0 0 auto; }
     .search-row input { flex: 1 1 auto; min-width: 0; }
     .random-button { white-space: nowrap; }
+    .duration-filter {
+      margin-top: 10px;
+      min-width: 0;
+    }
+    .duration-labels, .duration-scale {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .duration-slider {
+      position: relative;
+      height: 40px;
+      margin: 0 12px;
+      --range-start: 14.2857%;
+      --range-end: 42.8571%;
+    }
+    .duration-track {
+      position: absolute;
+      top: 18px;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(to right,
+        #aaa var(--range-start), #000080 var(--range-start),
+        #000080 var(--range-end), #aaa var(--range-end));
+    }
+    .duration-slider input[type="range"] {
+      position: absolute;
+      inset: 0;
+      width: calc(100% + 24px);
+      height: 40px;
+      margin: 0 -12px;
+      padding: 0;
+      background: transparent;
+      pointer-events: none;
+      appearance: none;
+    }
+    .duration-slider input[type="range"]::-webkit-slider-runnable-track {
+      height: 4px;
+      background: transparent;
+      border: 0;
+      box-shadow: none;
+    }
+    .duration-slider input[type="range"]::-moz-range-track {
+      height: 4px;
+      background: transparent;
+      border: 0;
+      box-shadow: none;
+    }
+    .duration-slider input[type="range"]::-webkit-slider-thumb {
+      appearance: none;
+      width: 24px;
+      height: 24px;
+      margin-top: -10px;
+      transform: none;
+      border: 2px solid #000080;
+      border-radius: 50%;
+      background: #dfdfdf;
+      box-shadow: inset 2px 2px #fff, inset -2px -2px #808080;
+      pointer-events: auto;
+      cursor: ew-resize;
+    }
+    .duration-slider input[type="range"]::-moz-range-thumb {
+      width: 24px;
+      height: 24px;
+      box-sizing: border-box;
+      transform: none;
+      border: 2px solid #000080;
+      border-radius: 50%;
+      background: #dfdfdf;
+      box-shadow: inset 2px 2px #fff, inset -2px -2px #808080;
+      pointer-events: auto;
+      cursor: ew-resize;
+    }
+    .duration-slider input:focus-visible {
+      outline: 1px dotted #000;
+      outline-offset: 2px;
+      z-index: 1;
+    }
     .status-row {
       display: flex;
       justify-content: space-between;
@@ -93,6 +172,24 @@
               Play random
             </button>
           </div>
+          <fieldset class="duration-filter">
+            <legend>Episode length</legend>
+            <div class="duration-labels">
+              <label for="durationMin">Min: <output id="durationMinValue" for="durationMin">5 min</output></label>
+              <label for="durationMax">Max: <output id="durationMaxValue" for="durationMax">15 min</output></label>
+            </div>
+            <div id="durationSlider" class="duration-slider">
+              <div class="duration-track" aria-hidden="true"></div>
+              <input id="durationMin" type="range" min="0" max="35" step="1" value="5"
+                     aria-label="Minimum episode length" aria-valuetext="5 minutes">
+              <input id="durationMax" type="range" min="0" max="35" step="1" value="15"
+                     aria-label="Maximum episode length" aria-valuetext="15 minutes">
+            </div>
+            <div class="duration-scale" aria-hidden="true">
+              <span>0 min</span>
+              <span id="durationLimit">35 min</span>
+            </div>
+          </fieldset>
         </form>
         <div class="status-row">
           <div id="status" class="result-meta">Loading episodes…</div>
@@ -118,6 +215,11 @@
     const metaEl = document.getElementById('meta')
     const randomButton = document.getElementById('randomButton')
     const searchForm = document.getElementById('searchForm')
+    const durationMin = document.getElementById('durationMin')
+    const durationMax = document.getElementById('durationMax')
+    const durationSlider = document.getElementById('durationSlider')
+    const durationMinValue = document.getElementById('durationMinValue')
+    const durationMaxValue = document.getElementById('durationMaxValue')
     const MAX_SNIPPET = 240
 
     const setStatus = (message) => {
@@ -184,16 +286,14 @@
         emptyCard.className = 'result-card sunken-panel'
         const emptyTitle = document.createElement('h2')
         emptyTitle.className = 'result-title'
-        emptyTitle.textContent = query ? 'No matches found' : 'Type to search'
+        emptyTitle.textContent = 'No matches found'
         const emptyText = document.createElement('p')
         emptyText.className = 'snippet'
-        emptyText.textContent = query
-          ? 'Try another keyword or a character name from the story.'
-          : 'Start typing to search episode titles and descriptions.'
+        emptyText.textContent = 'Try another keyword or adjust the episode length range.'
         emptyCard.appendChild(emptyTitle)
         emptyCard.appendChild(emptyText)
         resultsEl.appendChild(emptyCard)
-        metaEl.textContent = ''
+        metaEl.textContent = '0 results'
         return
       }
 
@@ -281,8 +381,14 @@
 
     const getEligibleEpisodes = (query) => {
       const trimmed = query.trim()
-      if (!trimmed) return state.episodes
-      return getSearchResults(trimmed)
+      const episodes = trimmed ? getSearchResults(trimmed) : state.episodes
+      const minimum = Number(durationMin.value) * 60
+      const maximum = Number(durationMax.value) * 60
+      return episodes.filter((episode) => {
+        const duration = Number(episode.duration)
+        return Number.isFinite(duration) && duration > 0
+          && duration >= minimum && duration <= maximum
+      })
     }
 
     const pickRandom = (items) => {
@@ -301,20 +407,15 @@
     const runSearch = (query) => {
       state.query = query
       const trimmed = query.trim()
-      if (!trimmed) {
-        renderResults([], '')
-        setStatus('Ready to search the archive.')
-        return
-      }
-
       if (!state.fuse) {
         renderResults([], trimmed)
         setStatus('Search is not ready yet.')
         return
       }
 
-      renderResults(getSearchResults(trimmed), trimmed)
-      setStatus(`Showing matches for "${trimmed}".`)
+      renderResults(getEligibleEpisodes(trimmed), trimmed)
+      const lengthSummary = ` Episode length: ${durationMin.value}–${durationMax.value} minutes.`
+      setStatus((trimmed ? `Showing matches for "${trimmed}".` : 'Browsing episodes.') + lengthSummary)
     }
 
     const playRandomEpisode = () => {
@@ -332,7 +433,7 @@
       const eligibleEpisodes = getEligibleEpisodes(query)
       if (!eligibleEpisodes.length) {
         renderResults([], trimmed)
-        setStatus(`No matches found for "${trimmed}".`)
+        setStatus('No episodes match the current search and length filter.')
         return
       }
 
@@ -343,7 +444,7 @@
       renderResults([episode], selectedTitle)
       setStatus(trimmed
         ? `Random pick from matches for "${trimmed}".`
-        : 'Random pick from all episodes.'
+        : 'Random pick from the selected episode length range.'
       )
       tryPlayRenderedAudio()
     }
@@ -365,8 +466,15 @@
         state.episodes = Array.isArray(data.episodes) ? data.episodes : []
         state.fuse = buildFuse(state.episodes)
         randomButton.disabled = !state.episodes.length
-        setStatus(`Loaded ${state.episodes.length} episodes.`)
-        renderResults([], '')
+        const longestMinutes = state.episodes.reduce((longest, episode) => {
+          const duration = Number(episode.duration)
+          return Number.isFinite(duration) ? Math.max(longest, Math.ceil(duration / 60)) : longest
+        }, 15)
+        durationMin.max = longestMinutes
+        durationMax.max = longestMinutes
+        document.getElementById('durationLimit').textContent = `${longestMinutes} min`
+        updateDurationRange()
+        runSearch(searchInput.value)
       } catch (error) {
         console.error(error)
         randomButton.disabled = true
@@ -375,7 +483,32 @@
       }
     }
 
+    function updateDurationRange(changedInput) {
+      if (Number(durationMin.value) >= Number(durationMax.value)) {
+        if (changedInput === durationMin) {
+          durationMin.value = Number(durationMax.value) - 1
+        } else {
+          durationMax.value = Number(durationMin.value) + 1
+        }
+      }
+      durationMinValue.value = `${durationMin.value} min`
+      durationMaxValue.value = `${durationMax.value} min`
+      durationMin.setAttribute('aria-valuetext', `${durationMin.value} minutes`)
+      durationMax.setAttribute('aria-valuetext', `${durationMax.value} minutes`)
+      const limit = Number(durationMax.max)
+      durationSlider.style.setProperty('--range-start', `${Number(durationMin.value) / limit * 100}%`)
+      durationSlider.style.setProperty('--range-end', `${Number(durationMax.value) / limit * 100}%`)
+    }
+
+    function handleDurationInput(event) {
+      updateDurationRange(event.target)
+      window.clearTimeout(debounceTimer)
+      debounceTimer = window.setTimeout(() => runSearch(searchInput.value), 100)
+    }
+
     searchInput.addEventListener('input', handleInput)
+    durationMin.addEventListener('input', handleDurationInput)
+    durationMax.addEventListener('input', handleDurationInput)
     searchForm.addEventListener('submit', (event) => {
       event.preventDefault()
       window.clearTimeout(debounceTimer)
