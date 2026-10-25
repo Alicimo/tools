@@ -5,83 +5,130 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Trash Collection Calendar (ICS)</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
-
-  <!-- Windows 98 theme -->
-  <link href="resources/98-css/98.css" rel="stylesheet" />
+  <link rel="stylesheet" href="resources/tools.css">
   <!-- FullCalendar (no React) -->
-  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css" rel="stylesheet" />
   <style>
-    :root { color-scheme: light; }
-    * { box-sizing: border-box; }
-    html, body { min-height: 100%; margin: 0; }
-    body { background: #008080; padding: 16px; }
-    .app-window { max-width: 1180px; margin: 0 auto; }
-    .window-body { padding: 4px; }
-    .app-header { margin-bottom: 12px; }
-    .app-title { font-size: 20px; margin: 0 0 4px; }
-    .muted-note { color: #404040; }
-    .next-banner { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 12px; }
-    .next-banner .status-bar-field { flex: 1 1 280px; margin: 0; }
+    .app-header {
+      margin-bottom: 28px;
+    }
+
+    .muted-note {
+      color: var(--tool-muted);
+      font-size: 14px;
+    }
+
+    .next-banner {
+      margin: 0 0 24px;
+      gap: 12px 28px;
+    }
+
+    .next-banner .status-bar-field {
+      flex: 1 1 280px;
+    }
+
     .error-panel {
-      background: #fff;
-      border: 2px inset #dfdfdf;
-      color: #800000;
-      margin-bottom: 12px;
-      padding: 8px;
+      border-left: 3px solid var(--tool-danger);
+      color: var(--tool-danger);
+      padding: 12px;
+      margin-bottom: 24px;
     }
-    .is-hidden { display: none; }
+
+    .is-hidden {
+      display: none;
+    }
+
     .content-grid {
-      align-items: start;
       display: grid;
-      gap: 12px;
-      grid-template-columns: minmax(0, 3fr) minmax(220px, 1fr);
+      align-items: start;
+      gap: 28px;
+      grid-template-columns: minmax(0, 3fr) minmax(180px, 1fr);
     }
-    .panel { margin: 0; min-width: 0; }
-    .sunken-panel { background: #fff; }
-    .calendar-surface { min-width: 0; padding: 8px; }
-    .legend-list { padding: 8px; }
-    .legend-row { align-items: center; display: flex; gap: 8px; margin-bottom: 4px; }
+
+    .panel {
+      margin: 0;
+      min-width: 0;
+    }
+
+    .calendar-surface {
+      min-width: 0;
+    }
+
+    .legend-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+      font-size: 14px;
+    }
+
     .status-chip {
       display: inline-block;
       margin-right: 6px;
-      padding: 2px 5px;
+      padding: 3px 8px;
+      background: var(--tool-subtle);
+      color: var(--tool-accent);
     }
-    .status-chip-success { background: #008000; color: #fff; }
-    .status-chip-primary { background: #000080; color: #fff; }
-    .app-footer { margin-top: 12px; }
 
-    /* Keep FullCalendar's controls and view styling independent of 98.css. */
-    .calendar-surface .fc { font-family: Arial, sans-serif; font-size: .95rem; }
-    .calendar-surface .fc button {
-      border-radius: .25rem;
+    .status-chip-success {
+      background: #edf3ec;
+      color: var(--tool-success);
+    }
+
+    .app-footer {
+      margin-top: 24px;
+    }
+
+    /* FullCalendar owns calendar geometry; palette follows the shared theme. */
+    .calendar-surface.fc {
+      font: 14px/1.5 var(--tool-font);
+      --fc-border-color: var(--tool-border);
+      --fc-button-bg-color: var(--tool-accent);
+      --fc-button-border-color: var(--tool-accent);
+      --fc-button-hover-bg-color: #514534;
+      --fc-button-hover-border-color: #514534;
+      --fc-button-active-bg-color: #443929;
+      --fc-button-active-border-color: #443929;
+      --fc-today-bg-color: var(--tool-subtle);
+    }
+
+    .calendar-surface.fc .fc-button {
+      min-height: 44px;
+      padding: 8px 10px;
+      border-radius: 2px;
       box-shadow: none;
-      font-family: Arial, sans-serif;
-      min-height: auto;
-      min-width: auto;
-      padding: .4em .65em;
-      text-shadow: none;
+      font: 14px/1.4 var(--tool-font);
     }
-    .calendar-surface .fc button:not(:disabled):active { box-shadow: none; }
-    .calendar-surface .fc table,
-    .calendar-surface .fc th,
-    .calendar-surface .fc td { font-family: Arial, sans-serif; }
 
-    @media (max-width: 700px) {
-      body { padding: 8px; }
-      .content-grid { grid-template-columns: 1fr; }
-      .calendar-surface { padding: 4px; }
-      .calendar-surface .fc .fc-toolbar { gap: 8px; flex-wrap: wrap; }
-      .calendar-surface .fc .fc-toolbar-title { font-size: 1rem; }
-      .calendar-surface .fc button { min-height: 36px; padding: 7px 10px; }
+    .calendar-surface.fc .fc-toolbar-title {
+      font: 24px/1.2 var(--tool-heading-font);
+    }
+
+    .calendar-surface.fc .fc-toolbar {
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    @media (max-width: 800px) {
+      .content-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .calendar-surface.fc .fc-toolbar {
+        align-items: start;
+        flex-direction: column;
+      }
     }
   </style>
 </head>
 <body>
-  <main class="window app-window">
-    <div class="title-bar">
-      <div class="title-bar-text">Trash Collection Calendar (ICS)</div>
-    </div>
-    <div class="window-body">
+  <nav class="tool-nav" aria-label="Tools">
+    <a class="tool-brand" href="index.html">Personal tools</a>
+    <a class="tool-home" href="index.html">All tools</a>
+  </nav>
+  <main class="tool-shell">
+    <div class="tool-content">
       <header class="app-header">
       <div>
         <h1 class="app-title">Trash Collection Calendar</h1>
@@ -107,11 +154,11 @@
     <section class="content-grid">
       <fieldset class="panel calendar-panel">
         <legend>Calendar</legend>
-        <div id="calendar" class="sunken-panel calendar-surface"></div>
+        <div id="calendar" class="surface calendar-surface"></div>
       </fieldset>
       <fieldset class="panel legend-panel">
         <legend>Legend</legend>
-        <div id="legend" class="sunken-panel legend-list"></div>
+        <div id="legend" class="surface legend-list"></div>
       </fieldset>
     </section>
 
@@ -129,10 +176,8 @@
   <script src="https://cdn.jsdelivr.net/npm/ical.js@1.5.0/build/ical.min.js"></script>
 
   <script>
-    /**
-     * ✅ Put your .ics file next to this HTML file and update this value if needed.
-     * Example: "BN_Kottingbrunn_2_2026.ics"
-     */
+    /* * * ✅ Put your .ics file next to this HTML file and update this value if needed. * Example: "BN_Kottingbrunn_2_2026.ics" */
+
     const ICS_URL = "resources/BN_Kottingbrunn_2_2026.ics";
 
     // --- Utilities ---

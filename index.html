@@ -2,338 +2,220 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Tools Index</title>
+  <title>Tools</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="resources/98-css/98.css">
+  <link rel="stylesheet" href="resources/tools.css">
   <style>
-    :root {
-      color-scheme: light;
-    }
-
-    * {
-      box-sizing: border-box;
-    }
-
-    body {
-      margin: 0;
-      min-height: 100vh;
-      padding: 24px;
-      background: #008080;
-    }
-
-    .catalog-window {
-      width: min(1100px, 100%);
-      margin: 0 auto;
-    }
-
-    .window-body {
-      margin: 0;
-      padding: 18px;
-    }
-
     .catalog-intro {
       display: flex;
-      align-items: flex-start;
       justify-content: space-between;
+      align-items: start;
       gap: 24px;
-      margin-bottom: 18px;
-    }
-
-    .catalog-heading {
-      margin: 0 0 8px;
-      font-size: 1.35rem;
+      margin-bottom: 36px;
     }
 
     .catalog-intro p {
-      max-width: 680px;
-      margin: 0;
-      line-height: 1.45;
+      max-width: 650px;
+      color: var(--tool-muted);
     }
 
     .catalog-status {
-      flex: 0 0 auto;
-      text-align: right;
-    }
-
-    .tool-count {
-      display: inline-block;
-      padding: 4px 8px;
-      background: #dfdfdf;
-      box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #fff;
-      font-weight: 700;
-      white-space: nowrap;
-    }
-
-    .tool-meta {
-      display: block;
-      margin-top: 8px;
-      color: #444;
-      font-size: 0.9rem;
+      flex-shrink: 0;
+      padding-top: 8px;
+      color: var(--tool-muted);
+      font-size: 14px;
     }
 
     .tool-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-      gap: 10px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0 40px;
       margin: 0;
       padding: 0;
       list-style: none;
     }
 
     .tool-link {
-      display: flex;
-      align-items: flex-start;
-      gap: 12px;
-      min-height: 132px;
-      padding: 12px;
-      color: #222;
+      display: block;
+      height: 100%;
+      padding: 24px 0;
+      border-top: 1px solid var(--tool-border);
+      color: var(--tool-text);
       text-decoration: none;
-    }
-
-    .tool-link:hover,
-    .tool-link:focus-visible {
-      background: #000080;
-      color: #fff;
-    }
-
-    .tool-link:focus-visible {
-      outline: 1px dotted #000;
-      outline-offset: 2px;
-    }
-
-    .tool-icon {
-      flex: 0 0 48px;
-      width: 48px;
-      height: 48px;
-      image-rendering: pixelated;
     }
 
     .tool-details {
       display: flex;
       flex-direction: column;
-      gap: 5px;
-      min-width: 0;
+      gap: 8px;
     }
 
     .tool-name {
       margin: 0;
-      font-size: 1rem;
-      line-height: 1.2;
+      font-size: 24px;
     }
 
     .tool-description {
-      line-height: 1.35;
+      color: var(--tool-muted);
+      font-size: 15px;
     }
 
-    .tool-file {
-      margin-top: auto;
-      color: #555;
-      font-size: 0.85rem;
-    }
-
-    .tool-link:hover .tool-file,
-    .tool-link:focus-visible .tool-file {
-      color: #fff;
-    }
-
-    @media (max-width: 620px) {
-      body {
-        padding: 8px;
+    @media (hover: hover) {
+      .tool-link:hover .tool-name {
+        text-decoration: underline;
+        text-underline-offset: 4px;
       }
+    }
 
-      .window-body {
-        padding: 12px;
-      }
-
+    @media (max-width: 650px) {
       .catalog-intro {
         flex-direction: column;
-        gap: 12px;
-        margin-bottom: 14px;
+        gap: 0;
+        margin-bottom: 24px;
       }
-
-      .catalog-status {
-        text-align: left;
-      }
-
       .tool-grid {
         grid-template-columns: 1fr;
-        gap: 8px;
       }
-
       .tool-link {
-        min-height: 156px;
-        padding: 16px;
-        gap: 16px;
-      }
-
-      .tool-icon {
-        flex-basis: 56px;
-        width: 56px;
-        height: 56px;
+        padding: 20px 0;
       }
     }
   </style>
 </head>
 <body>
-  <main class="window catalog-window">
-    <div class="title-bar">
-      <div class="title-bar-text">Tools Index</div>
-    </div>
-    <div class="window-body">
+  <nav class="tool-nav" aria-label="Tools">
+    <a class="tool-brand" href="index.html" aria-current="page">Personal tools</a>
+    <span class="tool-home">A personal collection</span>
+  </nav>
+  <main class="tool-shell">
+    <div class="tool-content">
       <section class="catalog-intro" aria-labelledby="catalog-heading">
         <div>
-          <h1 id="catalog-heading" class="catalog-heading">Tools Index</h1>
+          <h1 id="catalog-heading" class="catalog-heading">Tools</h1>
           <p>
-            Quick access to every single-file tool in this repo. Each item links to the tool and explains what it does.
+            Small, focused tools for everyday tasks.
           </p>
         </div>
         <div class="catalog-status">
-          <span class="tool-count">Total tools: 13</span>
-          <span class="tool-meta">Standalone HTML files are treated as tools.</span>
+          <span class="tool-count">13 tools</span>
         </div>
       </section>
 
       <ul class="tool-grid" aria-label="Available tools">
         <li>
           <a class="tool-link" href="calories.html">
-            <img class="tool-icon" src="resources/se98-icons/calories.png" alt="">
             <div class="tool-details">
               <h2 class="tool-name">Calories vs Height &amp; Weight</h2>
               <span class="tool-description">Interactive contour plot that estimates daily calories (BMR/TDEE) from height, weight, age, sex, and activity level.</span>
-              <span class="tool-file">File: calories.html</span>
             </div>
           </a>
         </li>
 
         <li>
           <a class="tool-link" href="intervals.html">
-            <img class="tool-icon" src="resources/se98-icons/intervals.png" alt="">
             <div class="tool-details">
               <h2 class="tool-name">Interval Timer</h2>
               <span class="tool-description">Simple active/rest interval timer with beeps, auto-repeat, and an option to keep the screen awake.</span>
-              <span class="tool-file">File: intervals.html</span>
             </div>
           </a>
         </li>
 
         <li>
           <a class="tool-link" href="golden-sun-class-explorer.html">
-            <img class="tool-icon" src="resources/se98-icons/golden-sun-class-explorer.png" alt="">
             <div class="tool-details">
               <h2 class="tool-name">Golden Sun Class Explorer</h2>
               <span class="tool-description">Compare Golden Sun classes by character, Djinn count, class type, stat scaling, and healing availability.</span>
-              <span class="tool-file">File: golden-sun-class-explorer.html</span>
             </div>
           </a>
         </li>
 
         <li>
           <a class="tool-link" href="heuriger.html">
-            <img class="tool-icon" src="resources/se98-icons/heuriger.png" alt="">
             <div class="tool-details">
               <h2 class="tool-name">Kottingbrunn Heurigen Map</h2>
               <span class="tool-description">Date-aware map and list showing which Kottingbrunn Heurigen are open, with cached geocoding.</span>
-              <span class="tool-file">File: heuriger.html</span>
             </div>
           </a>
         </li>
 
         <li>
           <a class="tool-link" href="lifting.html">
-            <img class="tool-icon" src="resources/se98-icons/lifting.png" alt="">
             <div class="tool-details">
               <h2 class="tool-name">Tactical Barbell Operator Planner</h2>
               <span class="tool-description">6-week wave calculator for squat, bench, and pull-ups with rounding and instant program tables.</span>
-              <span class="tool-file">File: lifting.html</span>
             </div>
           </a>
         </li>
 
         <li>
           <a class="tool-link" href="mermaid.html">
-            <img class="tool-icon" src="resources/se98-icons/mermaid.png" alt="">
             <div class="tool-details">
               <h2 class="tool-name">Mermaid Canvas</h2>
               <span class="tool-description">Mermaid diagram editor with live rendering plus PNG copy and download at custom scales.</span>
-              <span class="tool-file">File: mermaid.html</span>
             </div>
           </a>
         </li>
 
         <li>
           <a class="tool-link" href="notepad.html">
-            <img class="tool-icon" src="resources/se98-icons/notepad.png" alt="">
             <div class="tool-details">
               <h2 class="tool-name">Notepad</h2>
               <span class="tool-description">Minimal, offline-friendly notepad with markdown-style highlighting, URL hash autosave, and HTML export.</span>
-              <span class="tool-file">File: notepad.html</span>
             </div>
           </a>
         </li>
 
         <li>
           <a class="tool-link" href="publications.html">
-            <img class="tool-icon" src="resources/se98-icons/publications.png" alt="">
             <div class="tool-details">
               <h2 class="tool-name">Publications Browser</h2>
               <span class="tool-description">Searchable publications table loaded from BibTeX with filtering, sorting, and download.</span>
-              <span class="tool-file">File: publications.html</span>
             </div>
           </a>
         </li>
 
         <li>
           <a class="tool-link" href="podcast-search.html">
-            <img class="tool-icon" src="resources/se98-icons/podcast-search.png" alt="">
             <div class="tool-details">
               <h2 class="tool-name">Podcast Episode Search</h2>
               <span class="tool-description">Search Thomas and Friends Storytime episodes with inline audio playback.</span>
-              <span class="tool-file">File: podcast-search.html</span>
             </div>
           </a>
         </li>
 
         <li>
           <a class="tool-link" href="swipe.html">
-            <img class="tool-icon" src="resources/se98-icons/swipe.png" alt="">
             <div class="tool-details">
               <h2 class="tool-name">Canvas Swipe Cards</h2>
               <span class="tool-description">Swipeable canvas cards for practicing German vocabulary with tap-to-reveal translations.</span>
-              <span class="tool-file">File: swipe.html</span>
             </div>
           </a>
         </li>
 
         <li>
           <a class="tool-link" href="text-annotator.html">
-            <img class="tool-icon" src="resources/se98-icons/text-annotator.png" alt="">
             <div class="tool-details">
               <h2 class="tool-name">Text Annotator</h2>
               <span class="tool-description">Slide-ready text highlighter with custom labels, colors, autosave, and a clean screenshot mode.</span>
-              <span class="tool-file">File: text-annotator.html</span>
             </div>
           </a>
         </li>
 
         <li>
           <a class="tool-link" href="trash.html">
-            <img class="tool-icon" src="resources/se98-icons/trash.png" alt="">
             <div class="tool-details">
               <h2 class="tool-name">Trash Collection Calendar</h2>
               <span class="tool-description">Full-day trash pickup calendar rendered from a local ICS file with upcoming collection highlights.</span>
-              <span class="tool-file">File: trash.html</span>
             </div>
           </a>
         </li>
 
         <li>
           <a class="tool-link" href="vim-snake.html">
-            <img class="tool-icon" src="resources/se98-icons/vim-snake.png" alt="">
             <div class="tool-details">
               <h2 class="tool-name">Vim Snake</h2>
               <span class="tool-description">Retro Snake game with Vim or arrow-key controls, scoring, and speed that ramps up.</span>
-              <span class="tool-file">File: vim-snake.html</span>
             </div>
           </a>
         </li>

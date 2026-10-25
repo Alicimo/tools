@@ -1,12 +1,12 @@
 # AGENTS
 
-This repository is a collection of single-file HTML tools with inline page-specific CSS/JS. Vendored shared `98.css` is the default exception for the tool surface.
+This repository is a collection of single-file HTML tools with inline page-specific CSS/JS. All pages share the Editorial theme in `resources/tools.css`.
 Use these notes to keep edits consistent and low-friction for future agents.
 
 ## Repo map
 - `index.html` is the catalog page that links to each tool.
 - Each tool lives in a single `.html` file at repo root.
-- `resources/` holds local data files and vendored assets used by tools (including `98.css`, SE98 icons, BibTeX, and ICS).
+- `resources/` holds the shared stylesheet, local data files, and any required vendored assets.
 - There is no build system or package manager configured.
 
 ## Commands (build/lint/test)
@@ -26,11 +26,12 @@ Single-test equivalents:
 ## HTML structure
 - Use `<!doctype html>` and a simple `<html lang="en">` layout.
 - Keep `<meta charset>` and viewport in the head (or top of file for minimal pages).
-- New tools should link `resources/98-css/98.css` and use semantic 98.css structures for one primary application window and its controls.
-- Keep page-specific layout and third-party integration CSS in an inline `<style>` block near the top; there is no repository wrapper stylesheet.
+- Every tool must link `resources/tools.css` before its inline `<style>` block.
+- Include the shared `.tool-nav` navigation with the `Personal tools` brand and an `All tools` link to `index.html`. Use `.tool-shell` for the main content container where appropriate.
+- Keep page-specific layout and third-party integration CSS in an inline `<style>` block near the top.
 - Inline JS in a `<script>` block at the end of the document.
 - Prefer semantic tags (`header`, `main`, `section`, `article`).
-- Keep each tool self-contained, with the vendored 98.css link as the shared-style exception.
+- Keep each tool self-contained, with `resources/tools.css` as the shared-style exception.
 
 ## Formatting
 - Indentation: 2 spaces.
@@ -42,13 +43,16 @@ Single-test equivalents:
 
 ## CSS conventions
 - Prefer CSS variables on `:root` or `html` for shared colors.
-- Prefer light/dark theme handling with `prefers-color-scheme` when used.
+- The selected Editorial theme uses a white background, warm gray accents, Georgia headings, and system sans-serif controls. Keep the interface light even when the device prefers dark mode.
+- Use the `--tool-*` tokens in `resources/tools.css` for interface colors and fonts. Keep shared controls, typography, focus states, and spacing in that stylesheet; do not duplicate them in each tool.
 - Use simple class names; avoid deeply nested selectors.
 - Keep animations and transitions explicit and short.
 - Use `@media (hover)` to gate hover styles for touch devices.
-- Use 98.css by default for new tools. Do not combine Bootstrap and 98.css; new themed pages should not use Bootstrap.
-- Specialized surfaces may keep local styles when the core surface is a chart, canvas, editor, game, or is otherwise materially harmed by 98.css; record or preserve that rationale. Current exception files are `calories.html`, `swipe.html`, `golden-sun-class-explorer.html`, `text-annotator.html`, `notepad.html`, and `vim-snake.html`.
-- Responsive/mobile usability may override authentic 98.css dimensions. Do not add nonfunctional window controls.
+- Do not introduce Bootstrap, desktop window chrome, or a second global UI theme.
+- Charts, canvases, editor content, and annotation output may retain task-specific colors and typography. Their surrounding navigation and controls must still use the shared theme. Document the rationale near specialized styles.
+- Prefer whitespace, thin dividers, and underlined active tabs over nested cards, shadows, and rounded panels.
+- Design for mobile first: 16px editable text, controls at least 44px tall, wrapping toolbars, and stacked forms. Contain necessary wide-table scrolling inside the table wrapper; the page itself must not overflow at 320px.
+- Scope third-party integrations (Leaflet, Tabulator, FullCalendar, Mermaid) so shared styles do not break their geometry or generated output.
 
 ## JavaScript style
 - Use `const` by default; use `let` only when reassigning.
@@ -90,34 +94,36 @@ Single-test equivalents:
 - Prefer `requestAnimationFrame` for canvas or animation loops.
 
 ## File-specific notes
-- `index.html` is an Explorer-style 98.css catalog that uses the vendored SE98 icon subset.
-- Maintain the responsive icon grid and total count when adding/removing tools.
-- `notepad.html` and the other listed exception files are intentionally standalone specialized surfaces.
+- `index.html` is a text-first Editorial catalog with a responsive two-column list.
+- Maintain the catalog links and total count when adding/removing tools.
+- `notepad.html` exports self-contained notes by embedding the shared stylesheet. Preserve that behavior when changing styles or export code.
+- `text-annotator.html` hides navigation and controls in screenshot mode; preserve its user-selected output fonts and highlight colors.
+- `vim-snake.html` uses native dialogs and touch direction controls; its dark canvas is a contrast aid, not a separate page theme.
 
 ## When adding a new tool
 - Create a new `<tool>.html` at repo root.
-- Add a corresponding icon-grid entry to `index.html` with a short description.
-- Link `resources/98-css/98.css` and build one primary application window with semantic 98.css structures and functional controls.
-- Keep page-specific and integration CSS inline. Use the specialized-surface exception only with a clear rationale; do not use Bootstrap on a new themed page.
+- Add a corresponding catalog entry to `index.html` with a short description and update the count.
+- Link `resources/tools.css`, add the shared navigation and one descriptive `h1`, and use native labeled controls.
+- Keep page-specific layout and integration CSS inline. Extend the shared stylesheet only for patterns useful across tools.
 - Keep the tool self-contained; no build steps required.
 
 ## Testing checklist (manual)
 - Open the tool in a browser and exercise primary flows.
-- Verify the vendored 98.css and any vendored icon resources load, and that every displayed window control is functional.
-- Check layout on narrow/mobile widths.
+- Verify `resources/tools.css` loads and shared navigation works.
+- Check desktop and narrow/mobile widths, including 320px, for page overflow, readable forms, and usable touch targets.
 - Reload to verify persistence if localStorage is used.
 - Verify any external resources load without console errors.
 
 ## Git hygiene for agents
 - Do not modify unrelated tools unless requested.
 - Avoid reformatting entire files; limit edits to relevant sections.
-- Preserve existing visual language of each tool.
+- Preserve the shared Editorial visual language and each tool's task-specific behavior.
 
 ## Examples from this repo
 - Multi-line attribute formatting in `index.html`.
-- Explorer-style catalog and vendored SE98 icons in `index.html`.
+- Editorial catalog and shared navigation in `index.html`.
 - Inline scripting and async helpers in `notepad.html`.
-- CSS theming with `prefers-color-scheme` in `notepad.html`.
+- Shared theme tokens and control styles in `resources/tools.css`.
 
 ## Out of scope
 - No TypeScript or build tooling is present.

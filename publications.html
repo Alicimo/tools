@@ -6,9 +6,9 @@
   <title>Publications</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
 
-  <link href="resources/98-css/98.css" rel="stylesheet" />
+  <link rel="stylesheet" href="resources/tools.css">
 
-  <!-- Load Tabulator after 98.css so its table internals keep their base styles. -->
+  <!-- Tabulator provides its own table layout. -->
   <link
     href="https://cdnjs.cloudflare.com/ajax/libs/tabulator/6.3.1/css/tabulator.min.css"
     rel="stylesheet"
@@ -16,97 +16,165 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/tabulator/6.3.1/js/tabulator.min.js"></script>
 
   <style>
-    html, body { height: 100%; }
-    body { margin: 0; background: #008080; }
-    .window {
-      box-sizing: border-box;
-      display: flex;
-      flex-direction: column;
-      min-height: 100vh;
-      margin: 0 auto;
-      max-width: 1600px;
+    :root {
+      --tool-width: 1500px;
     }
-    .window-body {
-      display: flex;
-      flex: 1;
-      flex-direction: column;
-      min-height: 0;
-      padding: 8px;
-    }
-    .tool-header { margin-bottom: 8px; }
-    .tool-header h1 { font-size: 1.25rem; margin: 0 0 4px; }
-    .muted-small { color: #444; font-size: 11px; }
-    .control-strip {
-      align-items: end;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-bottom: 8px;
-    }
-    .control-group { display: flex; flex-direction: column; gap: 3px; }
-    .search-group { flex: 1 1 260px; }
-    #q { box-sizing: border-box; max-width: 320px; width: 100%; }
-    #year { box-sizing: border-box; width: 160px; }
-    .download-button {
-      align-items: center;
-      background: silver;
-      box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #fff,
-        inset -2px -2px grey, inset 2px 2px #dfdfdf;
-      box-sizing: border-box;
-      color: #222;
-      display: inline-flex;
-      justify-content: center;
-      min-height: 23px;
-      min-width: 75px;
-      padding: 4px 12px;
-      text-decoration: none;
-    }
-    .download-button:focus { outline: 1px dotted #000; outline-offset: -4px; }
-    .download-button:active {
-      box-shadow: inset -1px -1px #fff, inset 1px 1px #0a0a0a,
-        inset -2px -2px #dfdfdf, inset 2px 2px grey;
-    }
-    .table-wrap {
-      display: flex;
-      flex: 1;
-      flex-direction: column;
-      min-height: 60vh;
-    }
-    #status { margin: 0 0 8px; }
-    #pub-table { flex: 1; min-height: 0; width: 100%; }
-    .status-danger { color: #800000; font-weight: 700; }
-    .tabulator { border-radius: 0; }
-    .tabulator .tabulator-header { font-weight: 700; }
 
-    /* Keep 98.css table defaults away from Tabulator's responsive internals. */
-    #pub-table .tabulator .tabulator-responsive-collapse table {
-      border-collapse: separate;
-      border-spacing: 0;
+    .tool-content {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
     }
-    #pub-table .tabulator .tabulator-responsive-collapse table td,
-    #pub-table .tabulator .tabulator-responsive-collapse table th {
+
+    .muted-small {
+      color: var(--tool-muted);
+      font-size: 14px;
+    }
+
+    .control-strip {
+      display: flex;
+      align-items: end;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .search-group {
+      flex: 1 1 280px;
+    }
+
+    #q {
+      width: 100%;
+    }
+
+    #year {
+      width: 160px;
+    }
+
+    #status {
+      margin: 0 0 12px;
+    }
+
+    #pub-table {
+      width: 100%;
+    }
+
+    .status-danger {
+      color: var(--tool-danger);
+    }
+
+    /* Tabulator owns table geometry; only its palette and typography are themed. */
+    .tabulator {
       border: 0;
-      padding: 2px 4px;
+      border-top: 1px solid var(--tool-border);
+      background: #fff;
+      font: 14px/1.5 var(--tool-font);
+    }
+
+    .tabulator .tabulator-header, .tabulator .tabulator-header .tabulator-col {
+      background: #fff;
+      color: var(--tool-muted);
+      border-color: var(--tool-border);
+      font-weight: 500;
+    }
+
+    .tabulator .tabulator-header .tabulator-col .tabulator-col-content {
+      padding: 12px 8px;
+    }
+
+    .tabulator .tabulator-row {
+      background: #fff;
+      color: var(--tool-text);
+      border-bottom: 1px solid var(--tool-border);
+    }
+
+    .tabulator .tabulator-row.tabulator-row-even {
+      background: var(--tool-subtle);
+    }
+
+    .tabulator .tabulator-row .tabulator-cell {
+      padding: 12px 8px;
+      border-right: 0;
+    }
+
+    .tabulator .tabulator-cell[tabulator-field="title"] {
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
+
+    .tabulator .tabulator-responsive-collapse table {
+      width: 100%;
+      table-layout: fixed;
+    }
+
+    .tabulator .tabulator-responsive-collapse td {
+      padding: 6px 8px;
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
+
+    .tabulator .tabulator-responsive-collapse td:first-child {
+      width: 110px;
+      color: var(--tool-muted);
+    }
+
+    .tabulator .tabulator-footer {
+      background: #fff;
+      color: var(--tool-muted);
+      border-top-color: var(--tool-border);
+    }
+
+    .tabulator .tabulator-footer .tabulator-page {
+      min-height: 44px;
+      padding: 8px 12px;
+      border-color: var(--tool-border);
+      border-radius: 0;
+    }
+
+    .tabulator .tabulator-footer .tabulator-page.active {
+      color: var(--tool-accent);
+      border-color: var(--tool-accent);
+    }
+
+    .tabulator .tabulator-tableholder .tabulator-table {
+      background: #fff;
+      color: var(--tool-text);
+    }
+
+    @media (hover: hover) {
+      .tabulator .tabulator-row.tabulator-selectable:hover {
+        background: var(--tool-subtle);
+      }
     }
 
     @media (max-width: 600px) {
-      .window-body { padding: 6px; }
-      .control-group, #q, #year, .download-button { min-height: 32px; }
-      #q, #year, .download-button { width: 100%; max-width: none; }
-      .search-group { flex-basis: 100%; }
-      .control-group { flex: 1 1 100%; }
-      .download-button { padding: 7px 12px; }
+      .control-group, #q, #year, .button-link {
+        width: 100%;
+      }
+      .tabulator .tabulator-footer .tabulator-footer-contents {
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+      .tabulator .tabulator-footer .tabulator-paginator {
+        white-space: normal;
+      }
     }
   </style>
 </head>
 
 <body>
-  <div class="window">
-    <header class="title-bar">
-      <div class="title-bar-text">Publications</div>
-    </header>
+  <nav class="tool-nav" aria-label="Tools">
+    <a class="tool-brand" href="index.html">Personal tools</a>
+    <a class="tool-home" href="index.html">All tools</a>
+  </nav>
+  <div class="tool-shell">
 
-    <div class="window-body">
+    <div class="tool-content">
       <header class="tool-header">
         <h1>Publications</h1>
         <div class="muted-small">Loaded from <code>/resources/publications.bib</code></div>
@@ -123,7 +191,7 @@
             <option value="">All years</option>
           </select>
         </div>
-        <a id="downloadBib" class="download-button" href="/resources/publications.bib" download>
+        <a id="downloadBib" class="button-link" href="/resources/publications.bib" download>
           Download BibTeX
         </a>
       </section>
@@ -146,8 +214,8 @@
     // Citation.js (ESM) + BibTeX plugin
     // Pin versions for stability. Citation.js releases/bundles are documented by the project.  [oai_citation:2‡citation.js.org](https://citation.js.org/api/0.3/tutorial-getting_started.html?utm_source=chatgpt.com)
     // plugin-bibtex is part of the citation-js npm org.  [oai_citation:3‡npm](https://www.npmjs.com/org/citation-js?utm_source=chatgpt.com)
-    import { Cite } from "https://cdn.jsdelivr.net/npm/@citation-js/core@0.7.22/+esm";
-    import "https://cdn.jsdelivr.net/npm/@citation-js/plugin-bibtex@0.7.18/+esm";
+    import { Cite } from "https://cdn.jsdelivr.net/npm/@citation-js/core@0.7.21/+esm";
+    import "https://cdn.jsdelivr.net/npm/@citation-js/plugin-bibtex@0.7.21/+esm";
 
     const statusEl = document.getElementById("status");
     const qEl = document.getElementById("q");
@@ -226,19 +294,22 @@
 
     // Build Tabulator
     const table = new Tabulator("#pub-table", {
-      height: "100%",
       layout: "fitColumns",
       responsiveLayout: "collapse",
+      responsiveLayoutCollapseStartOpen: true,
       pagination: true,
       paginationSize: 10,
       paginationSizeSelector: [10, 20, 50, 100],
       placeholder: "No publications to display.",
       columns: [
-        { title: "Year", field: "year", width: 90, sorter: "number", hozAlign: "left" },
+        { title: "Year", field: "year", width: 90, sorter: "number", hozAlign: "left", responsive: 1 },
         {
           title: "Title",
           field: "title",
           sorter: "string",
+          minWidth: 180,
+          responsive: 0,
+          variableHeight: true,
           formatter: (cell) => {
             const row = cell.getRow().getData();
             const title = safeText(row.title);
@@ -255,13 +326,15 @@
           },
           widthGrow: 3
         },
-        { title: "Authors", field: "authors", sorter: "string", widthGrow: 2 },
-        { title: "Venue", field: "venue", sorter: "string", widthGrow: 1.5 },
+        { title: "Authors", field: "authors", sorter: "string", widthGrow: 2, minWidth: 180, responsive: 2 },
+        { title: "Venue", field: "venue", sorter: "string", widthGrow: 1.5, minWidth: 150, responsive: 3 },
         {
           title: "Vol/Issue/Pages",
           field: "vip",
           sorter: "string",
-          widthGrow: 1.2
+          widthGrow: 1.2,
+          minWidth: 160,
+          responsive: 4
         },
         {
           title: "DOI",
@@ -273,7 +346,9 @@
             const url = doiUrl(doi);
             return `<a href="${url}" target="_blank" rel="noopener noreferrer">${doi}</a>`;
           },
-          widthGrow: 1.2
+          widthGrow: 1.2,
+          minWidth: 160,
+          responsive: 5
         }
       ],
       initialSort: [

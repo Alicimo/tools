@@ -1,11 +1,12 @@
-<!DOCTYPE html>
+<!doctype html>
+<html lang="en">
+<head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#ffffff">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
-<link rel="manifest" href="manifest.json">
-<title>Textarea</title>
+<title>Notepad</title>
+<link rel="stylesheet" href="resources/tools.css">
 <style>
   * {
     margin: 0;
@@ -14,26 +15,15 @@
   }
 
   html {
-    color-scheme: light dark;
     -webkit-font-smoothing: antialiased;
-    text-rendering: optimizeLegibility;
-
-    background-color: #fff;
-    --elevated: #fff;
-    --link: #0066cc;
-    --text: #161616;
-
-    @media (prefers-color-scheme: dark) {
-      background-color: #000;
-      --elevated: #121212;
-      --link: #58a6ff;
-      --text: #fff;
-    }
+    --elevated: var(--tool-background);
+    --link: var(--tool-accent);
+    --text: var(--tool-text);
   }
 
-  body {
-    color: var(--text);
-  }
+  body { color: var(--text); }
+  .notepad-heading { width: min(800px, 100%); margin: 0 auto 16px; }
+  .md-h1, .md-h2, .md-h3 { font-family: var(--tool-heading-font); font-weight: 400; }
 
   a {
     color: var(--link);
@@ -43,10 +33,12 @@
   }
 
   article {
-    outline: none;
-    padding: 18px max(18px, calc(50vw - 400px));
+    outline-offset: 4px;
+    padding: 18px 0 80px;
+    max-width: 800px;
+    margin: 0 auto;
     width: 100%;
-    min-height: 100dvh;
+    min-height: calc(100dvh - 200px);
     font: 18px / 1.5 system-ui;
     tab-size: 4;
     white-space: pre-wrap;
@@ -60,7 +52,7 @@
   .md-h4,
   .md-h5,
   .md-h6 {
-    font-weight: 700;
+    font-weight: 400;
   }
 
   .md-h1 {
@@ -113,18 +105,18 @@
 
   #button {
     -webkit-tap-highlight-color: transparent;
-    background-color: #0569fa;
-    border-radius: 50%;
+    background-color: var(--tool-accent);
+    border-radius: 2px;
     border: none;
     bottom: 15px;
-    box-shadow: 0 3px 5px -1px rgba(0, 0, 0, 0.2), 0 6px 10px 0 rgba(0, 0, 0, 0.14), 0 1px 18px 0 rgba(0, 0, 0, .12);
+    box-shadow: none;
     color: #fff;
     cursor: pointer;
     display: grid;
     font-weight: 600;
     width: 46px;
     height: 46px;
-    outline: none;
+    outline-offset: 4px;
     overflow: hidden;
     padding: 0;
     place-items: center;
@@ -140,8 +132,8 @@
   @media (hover) {
     #button:hover {
       color: #fff;
-      background-color: #3c86f3;
-      box-shadow: 0 5px 5px -3px rgba(0, 0, 0, 0.2), 0 8px 10px 1px rgba(0, 0, 0, 0.14), 0 3px 14px 2px rgba(0, 0, 0, .12);
+      background-color: var(--tool-text);
+      box-shadow: none;
     }
   }
 
@@ -171,10 +163,11 @@
     position: fixed;
     right: 16px;
     bottom: 77px;
-    box-shadow: 0 19px 38px rgba(0, 0, 0, 0.10), 0 15px 12px rgba(0, 0, 0, 0.05);
+    box-shadow: none;
     background: var(--elevated);
     backdrop-filter: blur(10px);
-    border-radius: 10px;
+    border-radius: 2px;
+    border: 1px solid var(--tool-border);
     z-index: 2;
   }
 
@@ -193,7 +186,7 @@
     overflow: hidden;
     user-select: none;
     -webkit-tap-highlight-color: transparent;
-    outline: none;
+    outline-offset: 4px;
     border: none;
     touch-action: manipulation;
     font: 16px / 1.5 system-ui;
@@ -202,9 +195,6 @@
 
   #menu .item:hover {
     background-color: rgba(0, 0, 0, 0.04);
-    @media (prefers-color-scheme: dark) {
-      background-color: #353535;
-    }
   }
 
   #menu .item:first-child {
@@ -223,8 +213,15 @@
     }
   }
 </style>
-<article contenteditable="plaintext-only" spellcheck autofocus></article>
-<button id="button" class="noprint">
+</head>
+<body>
+  <nav class="tool-nav noprint" aria-label="Tools">
+    <a class="tool-brand" href="index.html">Personal tools</a>
+    <a class="tool-home" href="index.html">All tools</a>
+  </nav>
+<h1 class="notepad-heading noprint">Notepad</h1>
+<article contenteditable="plaintext-only" role="textbox" aria-label="Note text" aria-multiline="true" spellcheck autofocus></article>
+<button id="button" class="noprint" aria-label="Document menu">
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
        stroke="currentColor"
        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -233,7 +230,7 @@
     <circle cx="12" cy="19" r="1"></circle>
   </svg>
 </button>
-<div id="menu">
+<div id="menu" class="noprint">
   <a class="item" href="#new" target="_blank">New document</a>
   <a class="item" id="qr" href="/qr">Generate QR code</a>
   <a class="item" href="https://github.com/antonmedv/textarea" target="_blank">GitHub</a>
@@ -257,10 +254,6 @@
       download()
     }
   })
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js')
-  }
-
   console.log('%cGitHub https://github.com/antonmedv/textarea', 'font-size: 16px; border: 1px solid lightblue; border-radius: 12px; padding: 10px 14px; ')
 
   async function load() {
@@ -302,7 +295,7 @@
 
   function updateTitle() {
     const match = article.textContent.match(/^\n*#(.+)\n/)
-    document.title = match?.[1] ?? 'Textarea'
+    document.title = match?.[1] ?? 'Notepad'
   }
 
   async function compress(string) {
@@ -339,6 +332,24 @@
     doc.querySelectorAll('script').forEach(s => s.remove())
     doc.querySelectorAll('.noprint').forEach(s => s.remove())
     doc.querySelector('article').removeAttribute('contenteditable')
+    // Keep downloaded notes self-contained after introducing the shared theme.
+    const sharedStyles = document.querySelector('link[href="resources/tools.css"]')
+    if (sharedStyles) {
+      const style = document.createElement('style')
+      try {
+        style.textContent = Array.from(sharedStyles.sheet.cssRules, rule => rule.cssText).join('\n')
+      } catch {
+        // Local file URLs block CSS rule access. Preserve the resolved theme instead.
+        const theme = getComputedStyle(document.documentElement)
+        const bodyStyles = getComputedStyle(document.body)
+        const tokens = ['background', 'text', 'muted', 'border', 'accent', 'font', 'heading-font']
+          .map(name => `--tool-${name}: ${theme.getPropertyValue(`--tool-${name}`)}`)
+        const bodyRules = ['background', 'color', 'font', 'padding']
+          .map(name => `${name}: ${bodyStyles.getPropertyValue(name)}`)
+        style.textContent = `:root { ${tokens.join(';')} } body { ${bodyRules.join(';')} }`
+      }
+      doc.querySelector('link[href="resources/tools.css"]').replaceWith(style)
+    }
     const html = '<!DOCTYPE html>\n' + doc.outerHTML
 
     if ('showSaveFilePicker' in window) {
@@ -753,3 +764,6 @@
     }
   }
 </script>
+
+</body>
+</html>

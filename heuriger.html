@@ -5,111 +5,202 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Kottingbrunn Heurigen – Karte</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
-
-  <!-- Windows 98 theme -->
-  <link href="resources/98-css/98.css" rel="stylesheet">
+  <link rel="stylesheet" href="resources/tools.css">
 
   <!-- Leaflet -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
   <style>
-    :root { color-scheme: light; }
-    * { box-sizing: border-box; }
-    html, body { min-height: 100%; margin: 0; }
-    body { background: #008080; padding: 16px; }
-    .app-window { max-width: 1200px; margin: 0 auto; }
-    .window-body { padding: 4px; }
-    .app-header { margin-bottom: 12px; }
-    .app-title { font-size: 20px; margin: 0 0 4px; }
-    .small-muted { color: #404040; font-size: .9rem; }
-    .date-panel { margin: 0 0 12px; }
-    .date-controls { align-items: center; display: flex; flex-wrap: wrap; gap: 8px; }
-    #dateInput { min-height: 32px; width: 165px; }
-    .content-grid {
-      align-items: start;
-      display: grid;
-      gap: 12px;
-      grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+    .app-header {
+      margin-bottom: 28px;
     }
-    .panel { margin: 0; min-width: 0; }
-    .panel-toolbar { align-items: center; display: flex; justify-content: space-between; margin-bottom: 8px; }
-    .status-legend { display: flex; flex-wrap: wrap; gap: 12px; }
-    .status-dot {
-      border-radius: 50%;
-      display: inline-block;
-      height: 10px;
-      margin-right: .5rem;
-      vertical-align: middle;
-      width: 10px;
+
+    .small-muted {
+      color: var(--tool-muted);
+      font-size: 14px;
+      overflow-wrap: anywhere;
     }
-    #map { height: 70vh; min-height: 420px; }
-    .map-surface { background: #fff; padding: 4px; }
-    .map-note { margin-top: 8px; }
-    .count-field { min-width: 120px; text-align: center; }
-    .heuriger-list { background: #fff; max-height: 620px; overflow: auto; }
-    .heuriger-item {
-      align-items: flex-start;
-      border-bottom: 1px solid #808080;
-      color: #222;
+
+    .date-controls {
       display: flex;
+      align-items: center;
+      flex-wrap: wrap;
       gap: 12px;
-      justify-content: space-between;
-      padding: 10px;
-      text-decoration: none;
     }
-    .heuriger-item:last-child { border-bottom: 0; }
-    .heuriger-main { min-width: 0; }
-    .heuriger-name { font-weight: bold; }
-    .range-text { margin-top: 4px; }
-    .heuriger-actions { flex: 0 0 auto; text-align: right; }
-    .heuriger-action-row { align-items: center; display: flex; gap: 4px; margin-top: 8px; }
+
+    #dateInput {
+      width: 180px;
+    }
+
+    .content-grid {
+      display: grid;
+      align-items: start;
+      grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+      gap: 28px;
+    }
+
+    .panel {
+      margin: 0;
+      min-width: 0;
+    }
+
+    .panel-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .status-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      font-size: 14px;
+    }
+
+    .status-dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      margin-right: 8px;
+      border-radius: 50%;
+      vertical-align: middle;
+    }
+
+    #map {
+      height: 65vh;
+      min-height: 380px;
+    }
+
+    .map-note {
+      margin-top: 12px;
+    }
+
+    .heuriger-list {
+      max-height: 680px;
+      overflow: auto;
+    }
+
+    .heuriger-item {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 16px 0;
+      border-bottom: 1px solid var(--tool-border);
+    }
+
+    .heuriger-item:last-child {
+      border-bottom: 0;
+    }
+
+    .heuriger-main {
+      min-width: 0;
+    }
+
+    .heuriger-name {
+      font-weight: 600;
+    }
+
+    .range-text {
+      margin-top: 8px;
+      overflow-wrap: anywhere;
+      font-size: 13px;
+    }
+
+    .heuriger-actions {
+      flex-shrink: 0;
+      text-align: right;
+    }
+
+    .heuriger-action-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
     .status-pill {
       display: inline-block;
-      padding: 2px 5px;
-    }
-    .status-pill-open { background: #008000; color: #fff; }
-    .status-pill-closed { background: #800000; color: #fff; }
-    .website-link {
-      display: inline-block;
       padding: 3px 8px;
+      font-size: 12px;
     }
-    .source-panel { margin-top: 12px; }
-    .source-title { font-weight: bold; margin-bottom: 4px; }
-    .mono { font-family: "Courier New", monospace; }
 
-    /* Keep Leaflet's map, controls, and popups independent of 98.css. */
-    .map-surface.leaflet-container,
-    .map-surface.leaflet-container * { box-sizing: content-box; }
-    .map-surface.leaflet-container { font: 12px/1.5 Arial, sans-serif; }
-    .map-surface .leaflet-control a { color: #333; }
-    .map-surface .leaflet-popup-content a { font-family: Arial, sans-serif; }
+    .status-pill-open {
+      background: #edf3ec;
+      color: var(--tool-success);
+    }
 
-    @media (max-width: 760px) {
-      body { padding: 8px; }
-      .content-grid { grid-template-columns: 1fr; }
-      #map { height: 55vh; min-height: 320px; }
-      .heuriger-item { min-height: 64px; padding: 12px 10px; }
-      .heuriger-item .website-link,
-      .heuriger-item button { min-height: 36px; padding: 8px 12px; }
-      .map-surface .leaflet-control-zoom a { height: 36px; line-height: 36px; width: 36px; }
+    .status-pill-closed {
+      background: #faeeeb;
+      color: var(--tool-danger);
+    }
+
+    .website-link {
+      display: inline-flex;
+      align-items: center;
+      min-height: 44px;
+    }
+
+    .source-title {
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .panel-toolbar .status-bar {
+      margin: 0;
+    }
+
+    /* Leaflet owns the geometry of its map controls and tiles. */
+    .map-surface.leaflet-container, .map-surface.leaflet-container * {
+      box-sizing: content-box;
+    }
+
+    .map-surface.leaflet-container {
+      font: 14px/1.5 var(--tool-font);
+    }
+
+    .map-surface .leaflet-control a {
+      color: var(--tool-text);
+    }
+
+    .map-surface .leaflet-control-zoom a {
+      width: 44px;
+      height: 44px;
+      line-height: 44px;
+    }
+
+    @media (max-width: 900px) {
+      .content-grid {
+        grid-template-columns: 1fr;
+      }
+      .heuriger-list {
+        max-height: none;
+      }
+      #map {
+        height: 50vh;
+        min-height: 300px;
+      }
     }
 
     @media (max-width: 480px) {
-      .date-controls { align-items: stretch; flex-direction: column; }
-      #dateInput, #todayBtn { min-height: 40px; width: 100%; }
-      .panel-toolbar { align-items: flex-start; flex-direction: column; gap: 8px; }
-      .heuriger-item { flex-direction: column; }
-      .heuriger-actions { text-align: left; }
+      .heuriger-item {
+        flex-direction: column;
+      }
+      .heuriger-actions {
+        text-align: left;
+      }
     }
   </style>
 </head>
 
 <body>
-  <main class="window app-window">
-    <div class="title-bar">
-      <div class="title-bar-text">Kottingbrunn Heurigen – Karte</div>
-    </div>
-    <div class="window-body">
+  <nav class="tool-nav" aria-label="Tools">
+    <a class="tool-brand" href="index.html">Personal tools</a>
+    <a class="tool-home" href="index.html">All tools</a>
+  </nav>
+  <main class="tool-shell">
+    <div class="tool-content">
       <header class="app-header">
         <h1 class="app-title">Kottingbrunn Heurigen – Karte</h1>
         <div class="small-muted">
@@ -135,7 +226,7 @@
               <span><span class="status-dot" style="background:#dc3545;"></span>zu</span>
             </div>
           </div>
-          <div id="map" class="sunken-panel map-surface"></div>
+          <div id="map" class="surface map-surface"></div>
           <div class="small-muted map-note">
               Hinweis: Die Koordinaten werden per OpenStreetMap/Nominatim anhand der Adresse ermittelt und im Browser gecached.
               Wenn du das lokal als <span class="mono">file://</span> öffnest, kann je nach Browser das Fetching eingeschränkt sein – am besten über einen kleinen lokalen Server.
@@ -150,14 +241,15 @@
             </div>
           </div>
 
-          <div id="list" class="sunken-panel heuriger-list"></div>
+          <div id="list" class="surface heuriger-list"></div>
 
           <hr>
 
           <div class="source-panel">
               <div class="source-title">Datenquelle</div>
               <div class="small-muted">
-                Öffnungszeiten (Ausstecktermine) &amp; Adressen aus dem Kottingbrunn Heurigenkalender.  [oai_citation:1‡kottingbrunn.gv.at](https://www.kottingbrunn.gv.at/Heurigenkalender_1)
+                Öffnungszeiten (Ausstecktermine) &amp; Adressen aus dem
+                <a href="https://www.kottingbrunn.gv.at/Heurigenkalender_1" target="_blank" rel="noreferrer">Kottingbrunn Heurigenkalender</a>.
               </div>
           </div>
         </fieldset>

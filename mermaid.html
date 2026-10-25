@@ -6,46 +6,24 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
 
-  <link rel="stylesheet" href="resources/98-css/98.css">
+  <link rel="stylesheet" href="resources/tools.css">
 
   <!-- Mermaid -->
   <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
 
   <style>
-    body {
-      box-sizing: border-box;
-      min-height: 100vh;
-      margin: 0;
-      padding: 16px;
-      background: #008080;
-    }
-
-    .tool-page {
-      display: flex;
-      justify-content: center;
-      align-items: flex-start;
-      min-height: calc(100vh - 32px);
-    }
-
-    .window {
-      width: min(100%, 1100px);
-    }
-
-    .window-body {
-      padding: 16px;
+    .tool-shell {
+      max-width: 1200px;
     }
 
     .toolbar {
       display: flex;
       align-items: center;
       flex-wrap: wrap;
-      gap: 8px;
-      padding-bottom: 12px;
-      border-bottom: 1px solid #808080;
-    }
-
-    .toolbar button {
-      min-height: 36px;
+      gap: 10px;
+      margin: 24px 0;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--tool-border);
     }
 
     .scale-field {
@@ -54,21 +32,18 @@
 
     .scale-field input {
       width: 70px;
-      min-height: 32px;
     }
 
     .workspace {
       display: grid;
       grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-      gap: 12px;
-      margin-top: 12px;
+      gap: 28px;
     }
 
-    .editor-column,
-    .preview-column {
+    .editor-column, .preview-column {
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 16px;
       min-width: 0;
     }
 
@@ -77,24 +52,21 @@
       margin: 0;
     }
 
-    .editor-field,
-    .preview-field {
+    .editor-field, .preview-field {
       flex: 1;
     }
 
     #input {
       display: block;
-      box-sizing: border-box;
       width: 100%;
-      min-height: 280px;
+      min-height: 320px;
       resize: vertical;
-      font-family: monospace;
+      font-family: ui-monospace, monospace;
     }
 
     #preview {
-      min-height: 260px;
-      padding: 16px;
-      background: #fff;
+      min-height: 300px;
+      padding: 12px 0;
       overflow: auto;
     }
 
@@ -106,28 +78,15 @@
     #errorBox {
       min-height: 42px;
       margin: 0;
-      color: #800000;
+      color: var(--tool-danger);
       white-space: pre-wrap;
-      word-break: break-word;
+      overflow-wrap: anywhere;
     }
 
     @media (max-width: 760px) {
-      body {
-        padding: 8px;
-      }
-
-      .tool-page {
-        min-height: calc(100vh - 16px);
-      }
-
-      .window-body {
-        padding: 12px 8px;
-      }
-
       .workspace {
         grid-template-columns: 1fr;
       }
-
       .scale-field {
         margin-left: 0;
       }
@@ -136,12 +95,14 @@
 </head>
 
 <body>
+  <nav class="tool-nav" aria-label="Tools">
+    <a class="tool-brand" href="index.html">Personal tools</a>
+    <a class="tool-home" href="index.html">All tools</a>
+  </nav>
 <main class="tool-page">
-  <div class="window">
-    <div class="title-bar">
-      <div class="title-bar-text">Mermaid Canvas</div>
-    </div>
-    <div class="window-body">
+  <div class="tool-shell">
+    <div class="tool-content">
+      <h1>Mermaid canvas</h1>
       <div class="toolbar">
         <button id="renderBtn" class="default">Render</button>
         <button id="copyBtn" disabled>Copy PNG</button>
@@ -168,7 +129,7 @@
         <div class="preview-column">
           <fieldset class="preview-field">
             <legend>Preview</legend>
-            <div id="preview" class="sunken-panel"></div>
+            <div id="preview" class="surface"></div>
           </fieldset>
         </div>
       </div>
@@ -177,9 +138,19 @@
 </main>
 
 <script>
+  const themeStyles = getComputedStyle(document.documentElement)
   mermaid.initialize({
     startOnLoad: false,
-    theme: "default",
+    theme: 'base',
+    themeVariables: {
+      primaryColor: themeStyles.getPropertyValue('--tool-subtle').trim(),
+      primaryTextColor: themeStyles.getPropertyValue('--tool-text').trim(),
+      primaryBorderColor: themeStyles.getPropertyValue('--tool-border').trim(),
+      lineColor: themeStyles.getPropertyValue('--tool-accent').trim(),
+      secondaryColor: '#efede7',
+      tertiaryColor: '#fff',
+      fontFamily: 'system-ui, sans-serif'
+    },
     securityLevel: "strict"
   });
 
@@ -246,8 +217,8 @@
   function svgToPngBlob(svgEl, scale = 2) {
     return new Promise((resolve, reject) => {
       const svgData = new XMLSerializer().serializeToString(svgEl);
-      const svgBlob = new Blob([svgData], { type: "image/svg+xml" });
-      const url = URL.createObjectURL(svgBlob);
+    // A data URL lets Chrome export SVGs containing Mermaid's HTML labels.
+    const url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgData)
 
       const img = new Image();
       img.onload = () => {
@@ -262,8 +233,6 @@
         ctx.fillStyle = "white";
         ctx.fillRect(0, 0, w, h);
         ctx.drawImage(img, 0, 0, w, h);
-
-        URL.revokeObjectURL(url);
 
         canvas.toBlob(blob => {
           blob ? resolve(blob) : reject("PNG export failed");

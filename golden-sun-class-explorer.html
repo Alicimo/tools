@@ -4,127 +4,77 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Golden Sun Class Explorer</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="resources/tools.css">
   <style>
     :root {
-      --bg: #0f172a;
-      --panel: #111827;
-      --panel-2: #1f2937;
-      --text: #e5e7eb;
-      --muted: #9ca3af;
-      --line: #374151;
-      --accent: #fbbf24;
-      --good: #86efac;
-      --warn: #fca5a5;
-      --tri: #c084fc;
-      --venus: #facc15;
-      --mars: #ef4444;
-      --jupiter: #a78bfa;
-      --mercury: #38bdf8;
-      --shadow: 0 18px 50px rgba(0,0,0,.35);
+      --good: var(--tool-success);
+      --warn: var(--tool-danger);
+      --tri: #795789;
+      --venus: #b78b19;
+      --mars: #b64738;
+      --jupiter: #8f70ad;
+      --mercury: #3c8a9e;
     }
 
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: radial-gradient(circle at top left, #1e293b, var(--bg) 38rem);
-      color: var(--text);
-      line-height: 1.5;
-    }
-
-    header {
-      padding: 2.2rem clamp(1rem, 3vw, 3rem) 1rem;
+    header, main {
       max-width: 1400px;
       margin: 0 auto;
-    }
-
-    h1 {
-      margin: 0 0 .5rem;
-      font-size: clamp(1.8rem, 4vw, 3rem);
-      letter-spacing: -0.04em;
     }
 
     .subtitle {
-      color: var(--muted);
-      max-width: 78rem;
-      margin: 0;
-      font-size: 1rem;
-    }
-
-    main {
-      max-width: 1400px;
-      margin: 0 auto;
-      padding: 1rem clamp(1rem, 3vw, 3rem) 3rem;
+      color: var(--tool-muted);
+      max-width: 1000px;
+      margin: 0 0 28px;
     }
 
     .controls {
       display: grid;
-      grid-template-columns: repeat(12, 1fr);
-      gap: 1rem;
-      background: rgba(17, 24, 39, .82);
-      border: 1px solid var(--line);
-      border-radius: 18px;
-      padding: 1rem;
-      box-shadow: var(--shadow);
-      backdrop-filter: blur(8px);
-      position: sticky;
-      top: .75rem;
-      z-index: 5;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 24px;
+      padding: 20px 0;
+      border-block: 1px solid var(--tool-border);
+      background: #fff;
     }
 
-    .control-card { grid-column: span 3; min-width: 0; }
+    .control-card {
+      min-width: 0;
+    }
 
     label {
       display: block;
-      color: var(--muted);
-      font-size: .82rem;
-      text-transform: uppercase;
-      letter-spacing: .08em;
-      margin-bottom: .45rem;
-      font-weight: 700;
+      color: var(--tool-muted);
+      margin-bottom: 6px;
     }
 
     select, input[type="number"] {
       width: 100%;
-      border: 1px solid var(--line);
-      background: var(--panel-2);
-      color: var(--text);
-      border-radius: 12px;
-      padding: .78rem .9rem;
-      font-size: 1rem;
-      outline: none;
     }
-
-    select:focus, input:focus { border-color: var(--accent); }
 
     .table-wrap {
-      margin-top: 1rem;
+      margin-top: 28px;
       overflow-x: auto;
-      border: 1px solid var(--line);
-      border-radius: 18px;
-      background: rgba(17, 24, 39, .9);
-      box-shadow: var(--shadow);
     }
 
-    table { width: 100%; border-collapse: collapse; min-width: 1120px; }
+    table {
+      width: 100%;
+      min-width: 1120px;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
 
     th, td {
-      padding: .82rem .9rem;
-      border-bottom: 1px solid var(--line);
+      padding: 14px 10px;
+      border-bottom: 1px solid var(--tool-border);
       text-align: left;
       vertical-align: top;
       white-space: nowrap;
     }
 
     th {
-      position: sticky;
-      top: 0;
-      background: #111827;
-      color: var(--muted);
-      font-size: .78rem;
-      text-transform: uppercase;
-      letter-spacing: .07em;
-      z-index: 2;
+      background: #fff;
+      color: var(--tool-muted);
+      font-weight: 500;
     }
 
     th.sortable {
@@ -132,82 +82,111 @@
       user-select: none;
     }
 
-    th.sortable:hover,
     th.sorted {
-      color: #fff7ed;
+      color: var(--tool-accent);
     }
 
     th.sortable::after {
-      content: "↕";
-      color: #64748b;
-      font-size: .68rem;
-      margin-left: .35rem;
+      content: '↕';
+      margin-left: 6px;
     }
 
-    th.sorted.asc::after { content: "↑"; color: var(--accent); }
-    th.sorted.desc::after { content: "↓"; color: var(--accent); }
+    th.sorted.asc::after {
+      content: '↑';
+    }
 
-    tr:last-child td { border-bottom: 0; }
-    tbody tr:hover { background: rgba(251, 191, 36, .06); }
+    th.sorted.desc::after {
+      content: '↓';
+    }
 
-    .class-name { font-weight: 800; color: #fff; display: block; }
+    .class-name {
+      display: block;
+      font-weight: 600;
+    }
+
     .series {
-      color: var(--muted);
-      font-size: .85rem;
       display: inline-flex;
-      align-items: center;
-      gap: .35rem;
-      margin-top: .1rem;
+      margin-top: 4px;
+      color: var(--tool-muted);
+      font-size: 13px;
     }
 
-    .series a {
-      color: #93c5fd;
-      text-decoration: none;
+    .tri-label {
+      color: var(--tri);
     }
 
-    .series a:hover,
-    .series a:focus {
-      color: #bfdbfe;
-      text-decoration: underline;
-    }
-
-    .tri-label { color: var(--tri); font-weight: 800; }
     .djinn-dots {
       display: flex;
       flex-wrap: wrap;
-      gap: .28rem;
-      max-width: 9rem;
+      gap: 4px;
+      max-width: 140px;
     }
 
     .djinn-dot {
-      width: .82rem;
-      height: .82rem;
-      border: 1px solid rgba(255, 255, 255, .38);
-      border-radius: 999px;
-      box-shadow: inset 0 -2px 3px rgba(0, 0, 0, .22);
+      width: 13px;
+      height: 13px;
+      border-radius: 50%;
       flex: 0 0 auto;
     }
 
-    .djinn-dot.venus { background: var(--venus); }
-    .djinn-dot.mars { background: var(--mars); }
-    .djinn-dot.jupiter { background: var(--jupiter); }
-    .djinn-dot.mercury { background: var(--mercury); }
-    .stat { font-variant-numeric: tabular-nums; }
-    .sum { font-weight: 850; color: var(--accent); }
-    .heal-yes { color: var(--good); font-weight: 850; }
-    .heal-no { color: var(--warn); font-weight: 850; }
-    .empty { padding: 2rem; color: var(--muted); text-align: center; }
-
-    @media (max-width: 980px) {
-      .control-card { grid-column: span 12; }
+    .djinn-dot.venus {
+      background: var(--venus);
     }
 
-    @media (max-width: 540px) {
-      .controls { position: static; }
+    .djinn-dot.mars {
+      background: var(--mars);
+    }
+
+    .djinn-dot.jupiter {
+      background: var(--jupiter);
+    }
+
+    .djinn-dot.mercury {
+      background: var(--mercury);
+    }
+
+    .stat {
+      font-variant-numeric: tabular-nums;
+    }
+
+    .sum {
+      font-weight: 600;
+      color: var(--tool-accent);
+    }
+
+    .heal-yes {
+      color: var(--good);
+    }
+
+    .heal-no {
+      color: var(--warn);
+    }
+
+    .empty {
+      padding: 32px 0;
+      color: var(--tool-muted);
+      text-align: center;
+    }
+
+    @media (hover: hover) {
+      tbody tr:hover {
+        background: var(--tool-subtle);
+      }
+    }
+
+    @media (max-width: 700px) {
+      .controls {
+        grid-template-columns: 1fr;
+        gap: 16px;
+      }
     }
   </style>
 </head>
 <body>
+  <nav class="tool-nav" aria-label="Tools">
+    <a class="tool-brand" href="index.html">Personal tools</a>
+    <a class="tool-home" href="index.html">All tools</a>
+  </nav>
   <header>
     <h1>Golden Sun class explorer</h1>
     <p class="subtitle">

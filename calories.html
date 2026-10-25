@@ -9,71 +9,136 @@
   <!-- Plotly (no React needed) -->
   <script src="https://cdn.plot.ly/plotly-2.30.0.min.js"></script>
 
+  <link rel="stylesheet" href="resources/tools.css">
   <style>
-    :root { --bg:#0b0f17; --panel:#121a27; --muted:#9fb0c7; --text:#eaf0ff; --accent:#7aa2ff; }
-    * { box-sizing: border-box; }
-    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background:var(--bg); color:var(--text); }
-    header { padding:16px 18px; border-bottom:1px solid rgba(255,255,255,.08); display:flex; gap:10px; align-items:center; justify-content:space-between; }
-    header h1 { margin:0; font-size:16px; font-weight:650; letter-spacing:.2px; }
-    header .sub { color:var(--muted); font-size:12px; }
-    .wrap { max-width: 1200px; margin: 0 auto; padding: 16px; }
-    .tabs { display:flex; gap:8px; margin-bottom:12px; }
+    :root {
+      --bg: var(--tool-background);
+      --panel: var(--tool-background);
+      --text: var(--tool-text);
+      --muted: var(--tool-muted);
+      --accent: var(--tool-accent);
+    }
+
+    header, .wrap {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    header .sub {
+      color: var(--tool-muted);
+      font-size: 14px;
+      margin-top: 8px;
+    }
+
+    .tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin: 28px 0;
+      border-bottom: 1px solid var(--tool-border);
+    }
+
     .tabbtn {
-      border:1px solid rgba(255,255,255,.12);
-      background: transparent;
-      color: var(--text);
-      padding: 8px 10px;
-      border-radius: 10px;
-      cursor: pointer;
-      font-weight: 600;
-      font-size: 13px;
-      opacity: .9;
+      border: 0;
+      border-bottom: 2px solid transparent;
+      border-radius: 0;
+      padding-inline: 0;
     }
-    .tabbtn.active { background: rgba(122,162,255,.18); border-color: rgba(122,162,255,.45); }
-    .grid { display:grid; grid-template-columns: 320px 1fr; gap:12px; align-items:start; }
-    @media (max-width: 920px) { .grid { grid-template-columns: 1fr; } }
+
+    .tabbtn.active {
+      border-bottom-color: var(--tool-accent);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 280px minmax(0, 1fr);
+      gap: 32px;
+      align-items: start;
+    }
+
     .panel {
-      background: var(--panel);
-      border:1px solid rgba(255,255,255,.08);
-      border-radius: 14px;
-      padding: 12px;
+      min-width: 0;
+      padding-top: 16px;
+      border-top: 1px solid var(--tool-border);
     }
-    .panel h2 { margin: 0 0 10px 0; font-size: 13px; color: var(--muted); font-weight: 700; letter-spacing:.2px; }
-    label { display:block; font-size:12px; color: var(--muted); margin: 10px 0 6px; }
+
+    .panel h2 {
+      margin: 0 0 16px;
+      font: 600 14px/1.4 var(--tool-font);
+    }
+
+    label {
+      display: block;
+      margin: 12px 0 6px;
+      color: var(--tool-muted);
+    }
+
     input, select {
-      width:100%;
-      padding: 10px 10px;
-      border-radius: 10px;
-      border:1px solid rgba(255,255,255,.12);
-      background: rgba(0,0,0,.22);
-      color: var(--text);
-      outline: none;
+      width: 100%;
     }
-    input:focus, select:focus { border-color: rgba(122,162,255,.65); box-shadow: 0 0 0 3px rgba(122,162,255,.15); }
-    .row2 { display:grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+    .row2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
     .kpi {
-      margin-top: 12px;
-      padding: 10px;
-      border-radius: 12px;
-      border: 1px dashed rgba(255,255,255,.18);
-      background: rgba(255,255,255,.04);
+      margin-top: 24px;
+      padding: 16px 0;
+      border-block: 1px solid var(--tool-border);
     }
-    .kpi .big { font-size: 22px; font-weight: 800; }
-    .kpi .small { color: var(--muted); font-size: 12px; }
-    .hint { margin-top: 10px; font-size: 12px; color: var(--muted); line-height: 1.35; }
-    #plot { width: 100%; height: 640px; }
-    .content { display:none; }
-    .content.active { display:block; }
-    a { color: var(--accent); text-decoration: none; }
-    a:hover { text-decoration: underline; }
-    .explain { line-height: 1.55; color: var(--text); }
-    .explain h3 { margin: 14px 0 6px; font-size: 14px; }
-    .explain code { background: rgba(255,255,255,.06); padding: 2px 6px; border-radius: 8px; }
-    .footer-note { margin-top: 10px; color: var(--muted); font-size: 12px; }
+
+    .kpi .big {
+      font: 30px/1.3 var(--tool-heading-font);
+    }
+
+    .kpi .small, .hint, .footer-note {
+      color: var(--tool-muted);
+      font-size: 14px;
+    }
+
+    .hint, .footer-note {
+      margin-top: 16px;
+    }
+
+    #plot {
+      width: 100%;
+      height: 560px;
+    }
+
+    .content {
+      display: none;
+    }
+
+    .content.active {
+      display: block;
+    }
+
+    .explain {
+      max-width: 850px;
+    }
+
+    .explain h3 {
+      margin-top: 28px;
+    }
+
+    @media (max-width: 920px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+      #plot {
+        height: 440px;
+      }
+    }
   </style>
 </head>
 
 <body>
+  <nav class="tool-nav" aria-label="Tools">
+    <a class="tool-brand" href="index.html">Personal tools</a>
+    <a class="tool-home" href="index.html">All tools</a>
+  </nav>
   <header>
     <div>
       <h1>Estimated Daily Calories vs Height & Weight</h1>
@@ -337,6 +402,7 @@
 
       const contour = {
         type: "contour",
+        colorscale: "YlOrBr",
         x: currentGrid.weights,
         y: currentGrid.heights,
         z: z,
@@ -346,7 +412,7 @@
           end: contourCfg.end,
           size: contourCfg.size,   // <- 100 kcal/day bands
           showlabels: true,
-          labelfont: { size: 11, color: "#eaf0ff" }
+          labelfont: { size: 12, color: "#302e27" }
         },
         hovertemplate:
           "Weight: %{x} kg<br>Height: %{y} cm<br>TDEE: %{z:.0f} kcal/day<extra></extra>",
@@ -358,13 +424,14 @@
         mode: "markers",
         x: [clamp(weightKg, currentGrid.wMin, currentGrid.wMax)],
         y: [clamp(heightCm, currentGrid.hMin, currentGrid.hMax)],
-        marker: { size: 11, line: { width: 2 } },
+        marker: { size: 11, color: "#302e27", line: { width: 2, color: "#fff" } },
         hovertemplate: "Your input<br>Weight: %{x} kg<br>Height: %{y} cm<extra></extra>",
         name: "You"
       };
 
       const layout = {
-        margin: { l: 60, r: 30, t: 10, b: 55 },
+        margin: { l: 50, r: 12, t: 10, b: 55 },
+        font: { family: "system-ui, sans-serif", color: "#302e27" },
         xaxis: { title: "Weight (kg)", range: [currentGrid.wMin, currentGrid.wMax], zeroline: false },
         yaxis: { title: "Height (cm)", range: [currentGrid.hMin, currentGrid.hMax], zeroline: false },
         paper_bgcolor: "rgba(0,0,0,0)",

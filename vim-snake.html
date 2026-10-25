@@ -6,164 +6,160 @@
   <title>Snake (Vim / Arrows) — Single-file SPA</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
 
-  <!-- Bootstrap (CDN) -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="resources/tools.css">
 
   <style>
-    :root{
-      --cell: 18px; /* “old Nokia-ish” vibe */
-      --cols: 20;
-      --rows: 16;
-    }
-    body {
-      background: #0b0f14;
-      color: #e9eef5;
-      user-select: none;
+    .tool-shell {
+      max-width: 900px;
     }
 
     .hud {
-      position: sticky;
-      top: 0;
-      z-index: 10;
-      background: rgba(11,15,20,0.85);
-      backdrop-filter: blur(6px);
-      border-bottom: 1px solid rgba(255,255,255,0.08);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 20px;
+      padding: 20px 0;
+      margin: 24px 0;
+      border-block: 1px solid var(--tool-border);
+    }
+
+    .control-options, .scores {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .control-options label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 44px;
+    }
+
+    .scores {
+      font-variant-numeric: tabular-nums;
     }
 
     .game-wrap {
       display: grid;
-      place-items: center;
-      padding: 18px 12px 40px;
+      justify-items: center;
+      gap: 20px;
     }
 
-    /* Crisp, retro-ish canvas */
+    /* The canvas retains a dark playfield for contrast; all surrounding UI is Editorial. */
     canvas {
+      max-width: 100%;
+      height: auto;
+      background: #252720;
       image-rendering: pixelated;
-      image-rendering: crisp-edges;
-      background: #0e1520;
-      border: 2px solid rgba(255,255,255,0.12);
-      border-radius: 10px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
     }
 
     .hint {
       max-width: 620px;
-      opacity: 0.9;
-    }
-    kbd {
-      background: rgba(255,255,255,0.10);
-      border: 1px solid rgba(255,255,255,0.12);
-      color: #e9eef5;
+      text-align: center;
+      font-size: 14px;
+      color: var(--tool-muted);
     }
 
-    /* Make the modal a bit “gamey” */
-    .modal-content {
-      background: #0f1722;
-      color: #e9eef5;
-      border: 1px solid rgba(255,255,255,0.12);
+    .d-none {
+      display: none;
     }
-    .modal-header, .modal-footer {
-      border-color: rgba(255,255,255,0.10);
+
+    kbd {
+      padding: 2px 5px;
+      border: 1px solid var(--tool-border);
+      background: var(--tool-subtle);
+      font: 13px/1.4 ui-monospace, monospace;
+    }
+
+    dialog {
+      width: min(460px, calc(100% - 32px));
+      padding: 28px;
+      border: 1px solid var(--tool-border);
+      background: #fff;
+      color: var(--tool-text);
+    }
+
+    dialog::backdrop {
+      background: rgba(48, 46, 39, .3);
+    }
+
+    dialog h2 {
+      margin: 0 0 20px;
+    }
+
+    .dialog-actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: end;
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    .touch-controls {
+      display: grid;
+      grid-template-columns: repeat(3, 48px);
+      gap: 8px;
+    }
+
+    .touch-controls button {
+      padding: 8px;
+    }
+
+    .touch-controls [data-direction="up"] {
+      grid-column: 2;
+    }
+
+    .touch-controls [data-direction="left"] {
+      grid-column: 1;
     }
   </style>
 </head>
 
 <body>
-  <!-- HUD -->
-  <div class="hud">
-    <div class="container-fluid py-2">
-      <div class="d-flex align-items-center justify-content-between gap-3">
-        <div class="d-flex align-items-center gap-3">
-          <div class="btn-group btn-group-sm" role="group" aria-label="Control scheme">
-            <input type="radio" class="btn-check" name="controls" id="controls-vi" autocomplete="off" checked>
-            <label class="btn btn-outline-light" for="controls-vi">Vim (h/j/k/l)</label>
-
-            <input type="radio" class="btn-check" name="controls" id="controls-arrows" autocomplete="off">
-            <label class="btn btn-outline-light" for="controls-arrows">Arrows</label>
-          </div>
-
-          <span class="badge text-bg-dark border border-light-subtle">
-            Press <kbd>Space</kbd> or <kbd>Enter</kbd> to Start
-          </span>
-        </div>
-
-        <div class="d-flex align-items-center gap-2">
-          <span class="badge text-bg-primary fs-6">Score: <span id="score">0</span></span>
-          <span class="badge text-bg-secondary fs-6">High: <span id="highScore">0</span></span>
-        </div>
+  <nav class="tool-nav" aria-label="Tools">
+    <a class="tool-brand" href="index.html">Personal tools</a>
+    <a class="tool-home" href="index.html">All tools</a>
+  </nav>
+  <main class="tool-shell">
+    <h1>Vim snake</h1>
+    <div class="hud">
+      <div class="control-options" role="group" aria-label="Control scheme">
+        <label><input type="radio" name="controls" id="controls-vi" checked> Vim (h/j/k/l)</label>
+        <label><input type="radio" name="controls" id="controls-arrows"> Arrows</label>
+      </div>
+      <div class="scores"><span>Score: <strong id="score">0</strong></span><span>High: <strong id="highScore">0</strong></span></div>
+      <button id="startGameBtn" class="primary" type="button">Start / restart</button>
+    </div>
+    <div class="game-wrap">
+      <canvas id="game" width="360" height="288" aria-label="Snake game canvas"></canvas>
+      <div class="touch-controls" role="group" aria-label="Direction controls">
+        <button type="button" data-direction="up" aria-label="Move up">↑</button>
+        <button type="button" data-direction="left" aria-label="Move left">←</button>
+        <button type="button" data-direction="down" aria-label="Move down">↓</button>
+        <button type="button" data-direction="right" aria-label="Move right">→</button>
+      </div>
+      <div class="hint">
+        <span class="controls-hint" data-mode="vi"><kbd>k</kbd> up · <kbd>j</kbd> down · <kbd>h</kbd> left · <kbd>l</kbd> right</span>
+        <span class="controls-hint d-none" data-mode="arrows">Use the arrow keys to move.</span>
+        <p>Space or Enter to start. Wrapping enabled; speed increases with score.</p>
       </div>
     </div>
-  </div>
-
-  <!-- Game -->
-  <div class="game-wrap">
-    <canvas id="game" width="360" height="288" aria-label="Snake game canvas"></canvas>
-
-    <div class="hint mt-3 text-center text-light">
-      <div class="small">
-        Movement:
-        <span class="controls-hint" data-mode="vi">
-          <kbd>k</kbd> up, <kbd>j</kbd> down, <kbd>h</kbd> left, <kbd>l</kbd> right
-        </span>
-        <span class="controls-hint d-none" data-mode="arrows">
-          <kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd>
-        </span>
-        · Wrapping enabled
-        · Speed increases with score
-      </div>
-    </div>
-  </div>
-
-  <!-- Game Over Modal -->
-  <div class="modal fade" id="gameOverModal" tabindex="-1" aria-labelledby="gameOverTitle" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="gameOverTitle">Game Over</h5>
-          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          <p class="mb-2">Your score: <span class="fw-semibold" id="finalScore">0</span></p>
-          <p class="mb-0">High score (this session): <span class="fw-semibold" id="finalHighScore">0</span></p>
-          <hr class="border-light-subtle">
-          <p class="small mb-0 opacity-75">
-            Press <kbd>Space</kbd> or <kbd>Enter</kbd> to start a new run.
-          </p>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Close</button>
-          <button type="button" class="btn btn-primary" id="playAgainBtn">Play again</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Win Modal -->
-  <div class="modal fade" id="winModal" tabindex="-1" aria-labelledby="winTitle" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="winTitle">You Win!</h5>
-          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          <p class="mb-2">Final score: <span class="fw-semibold" id="winScore">0</span></p>
-          <p class="mb-0">High score (this session): <span class="fw-semibold" id="winHighScore">0</span></p>
-          <hr class="border-light-subtle">
-          <p class="small mb-0 opacity-75">
-            Press <kbd>Space</kbd> or <kbd>Enter</kbd> to start a new run.
-          </p>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Close</button>
-          <button type="button" class="btn btn-primary" id="winPlayAgainBtn">Play again</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Bootstrap JS (CDN) -->
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  </main>
+  <dialog id="gameOverModal" aria-labelledby="gameOverTitle">
+    <h2 id="gameOverTitle">Game over</h2>
+    <p>Your score: <strong id="finalScore">0</strong></p>
+    <p>High score (this session): <strong id="finalHighScore">0</strong></p>
+    <div class="dialog-actions"><button type="button" data-close-dialog>Close</button><button type="button" class="primary" id="playAgainBtn">Play again</button></div>
+  </dialog>
+  <dialog id="winModal" aria-labelledby="winTitle">
+    <h2 id="winTitle">You win!</h2>
+    <p>Final score: <strong id="winScore">0</strong></p>
+    <p>High score (this session): <strong id="winHighScore">0</strong></p>
+    <div class="dialog-actions"><button type="button" data-close-dialog>Close</button><button type="button" class="primary" id="winPlayAgainBtn">Play again</button></div>
+  </dialog>
 
   <script>
     (() => {
@@ -200,11 +196,9 @@
       const hintArrows = document.querySelector('.controls-hint[data-mode="arrows"]');
       const hintVi = document.querySelector('.controls-hint[data-mode="vi"]');
 
-      // Bootstrap modal instance
+      // Native dialogs keep game feedback keyboard accessible.
       const gameOverModalEl = document.getElementById('gameOverModal');
-      const gameOverModal = new bootstrap.Modal(gameOverModalEl, { backdrop: 'static', keyboard: true });
       const winModalEl = document.getElementById('winModal');
-      const winModal = new bootstrap.Modal(winModalEl, { backdrop: 'static', keyboard: true });
 
       // ====== State ======
       let controlMode = 'vi'; // 'arrows' | 'vi'
@@ -318,8 +312,8 @@
 
       function startGame() {
         // If modal is open, close it.
-        try { gameOverModal.hide(); } catch (_) {}
-        try { winModal.hide(); } catch (_) {}
+        try { gameOverModalEl.close(); } catch (_) {}
+        try { winModalEl.close(); } catch (_) {}
 
         resetGame();
         running = true;
@@ -336,7 +330,7 @@
 
         finalScoreEl.textContent = String(score);
         finalHighScoreEl.textContent = String(highScore);
-        gameOverModal.show();
+        gameOverModalEl.showModal();
       }
 
       function winGame() {
@@ -349,7 +343,7 @@
 
         winScoreEl.textContent = String(score);
         winHighScoreEl.textContent = String(highScore);
-        winModal.show();
+        winModalEl.showModal();
       }
 
       function tryQueueDirection(next) {
@@ -396,6 +390,17 @@
       controlsVi.addEventListener('change', () => {
         if (controlsVi.checked) setControlMode('vi');
       });
+
+      document.getElementById('startGameBtn').addEventListener('click', startGame)
+      document.querySelectorAll('[data-close-dialog]').forEach(button => {
+        button.addEventListener('click', () => button.closest('dialog').close())
+      })
+      const touchDirections = { up: { x: 0, y: -1 }, down: { x: 0, y: 1 }, left: { x: -1, y: 0 }, right: { x: 1, y: 0 } }
+      document.querySelectorAll('[data-direction]').forEach(button => {
+        button.addEventListener('click', () => {
+          if (running) tryQueueDirection(touchDirections[button.dataset.direction])
+        })
+      })
 
       playAgainBtn.addEventListener('click', () => startGame());
       winPlayAgainBtn.addEventListener('click', () => startGame());
@@ -484,7 +489,7 @@
         for (let i = snake.length - 1; i >= 0; i--) {
           const seg = snake[i];
           const isHead = (i === 0);
-          drawCell(seg.x, seg.y, isHead ? '#60a5fa' : '#22c55e', false, isHead);
+          drawCell(seg.x, seg.y, isHead ? '#ede4cc' : '#9faa80', false, isHead);
         }
 
         // Overlay prompt when not running and not game over modal
@@ -497,7 +502,7 @@
           ctx.font = 'bold 16px system-ui, -apple-system, Segoe UI, Roboto, Arial';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          const line1 = 'Press Space or Enter';
+          const line1 = 'Press Start, Space or Enter';
           const line2 = 'to Start';
           ctx.fillText(line1, CANVAS_W / 2, CANVAS_H / 2 - 10);
           ctx.font = '14px system-ui, -apple-system, Segoe UI, Roboto, Arial';
@@ -550,10 +555,6 @@
       // Ensure the overlay is visible on first load
       draw(true);
 
-      // When modal closes, keep the board shown (frozen)
-      gameOverModalEl.addEventListener('hidden.bs.modal', () => {
-        // no-op; user can press space/enter to start again
-      });
     })();
   </script>
 </body>
