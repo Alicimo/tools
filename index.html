@@ -27,6 +27,18 @@
       font-size: 14px;
     }
 
+    .catalog-search {
+      margin-bottom: 24px;
+    }
+
+    .catalog-search input {
+      width: 100%;
+    }
+
+    .catalog-empty {
+      color: var(--tool-muted);
+    }
+
     .tool-grid {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -98,11 +110,18 @@
           </p>
         </div>
         <div class="catalog-status">
-          <span class="tool-count">13 tools</span>
+          <span class="tool-count" role="status">13 tools</span>
         </div>
       </section>
 
-      <ul class="tool-grid" aria-label="Available tools">
+      <div class="catalog-search field-row-stacked">
+        <label for="tool-search">Search tools</label>
+        <input id="tool-search" type="search" placeholder="Search by name or description"
+               aria-controls="tool-list" autocomplete="off">
+      </div>
+      <p class="catalog-empty" hidden>No tools match your search. Try another term.</p>
+
+      <ul id="tool-list" class="tool-grid" aria-label="Available tools">
         <li>
           <a class="tool-link" href="calories.html">
             <div class="tool-details">
@@ -222,5 +241,33 @@
       </ul>
     </div>
   </main>
+  <script>
+    const searchInput = document.querySelector('#tool-search')
+    const toolCount = document.querySelector('.tool-count')
+    const emptyMessage = document.querySelector('.catalog-empty')
+    const tools = Array.from(document.querySelectorAll('#tool-list > li'), item => ({
+      item,
+      text: item.textContent.toLowerCase().replace(/\s+/g, ' ').trim()
+    }))
+
+    function filterTools() {
+      const terms = searchInput.value.toLowerCase().trim().split(/\s+/).filter(Boolean)
+      let visibleCount = 0
+
+      tools.forEach(({ item, text }) => {
+        const matches = terms.every(term => text.includes(term))
+        item.hidden = !matches
+        if (matches) visibleCount += 1
+      })
+
+      toolCount.textContent = terms.length
+        ? `${visibleCount} of ${tools.length} tools`
+        : `${tools.length} tools`
+      emptyMessage.hidden = visibleCount > 0
+    }
+
+    searchInput.addEventListener('input', filterTools)
+    filterTools()
+  </script>
 </body>
 </html>
