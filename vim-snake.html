@@ -354,6 +354,11 @@
 
       // ====== Input ======
       function handleKeyDown(e) {
+        // Let navigation, form controls, and native dialogs handle their own keys.
+        if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey ||
+            e.target.closest('a, input, select, textarea, [contenteditable], dialog') ||
+            (e.target.closest('button') && (e.key === ' ' || e.key === 'Enter'))) return
+
         const key = e.key;
 
         // Start trigger when not running (either fresh or after game over)
