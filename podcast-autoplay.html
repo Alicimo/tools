@@ -1,0 +1,564 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Podcast autoplay</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="resources/tools.css">
+  <style>
+    .tool-shell {
+      max-width: 960px;
+    }
+
+    .app-description {
+      color: var(--tool-muted);
+      margin-bottom: 28px;
+    }
+
+    .search-panel {
+      border-top: 1px solid var(--tool-border);
+      padding: 20px 0;
+    }
+
+    .search-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .search-row input {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .random-button {
+      white-space: nowrap;
+    }
+
+    .duration-filter {
+      margin: 28px 0 12px;
+    }
+
+    .duration-labels, .duration-scale {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 14px;
+    }
+
+    .duration-slider {
+      position: relative;
+      height: 44px;
+      margin: 0 12px;
+      --range-start: 20%;
+      --range-end: 42.8571%;
+    }
+
+    .duration-track {
+      position: absolute;
+      top: 20px;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(to right, var(--tool-border) var(--range-start), var(--tool-accent) var(--range-start), var(--tool-accent) var(--range-end), var(--tool-border) var(--range-end));
+    }
+
+    .duration-slider input[type="range"] {
+      position: absolute;
+      inset: 0;
+      width: calc(100% + 24px);
+      height: 44px;
+      margin: 0 -12px;
+      padding: 0;
+      background: transparent;
+      pointer-events: none;
+      appearance: none;
+    }
+
+    .duration-slider input[type="range"]::-webkit-slider-runnable-track {
+      height: 4px;
+      background: transparent;
+      border: 0;
+    }
+
+    .duration-slider input[type="range"]::-moz-range-track {
+      height: 4px;
+      background: transparent;
+      border: 0;
+    }
+
+    .duration-slider input[type="range"]::-webkit-slider-thumb {
+      appearance: none;
+      width: 24px;
+      height: 24px;
+      margin-top: -10px;
+      border: 2px solid var(--tool-accent);
+      border-radius: 50%;
+      background: #fff;
+      pointer-events: auto;
+      cursor: ew-resize;
+    }
+
+    .duration-slider input[type="range"]::-moz-range-thumb {
+      width: 24px;
+      height: 24px;
+      border: 2px solid var(--tool-accent);
+      border-radius: 50%;
+      background: #fff;
+      pointer-events: auto;
+      cursor: ew-resize;
+    }
+
+    .duration-slider input:focus-visible {
+      z-index: 1;
+    }
+
+    .status-row {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .result-meta {
+      color: var(--tool-muted);
+      font-size: 14px;
+    }
+
+    .result-card {
+      padding: 24px 0;
+      border-top: 1px solid var(--tool-border);
+    }
+
+    .result-title {
+      margin: 0 0 10px;
+      font-size: 25px;
+    }
+
+    .snippet {
+      margin: 12px 0 16px;
+    }
+
+    .audio-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    audio {
+      width: 100%;
+    }
+
+    @media (max-width: 600px) {
+      .search-row {
+        align-items: stretch;
+        flex-direction: column;
+        gap: 10px;
+      }
+    }
+
+    @media (pointer: coarse) {
+      .duration-slider {
+        margin-inline: 22px;
+      }
+      .duration-slider input[type="range"] {
+        width: calc(100% + 44px);
+        margin-inline: -22px;
+      }
+      .duration-slider input[type="range"]::-webkit-slider-thumb {
+        width: 44px;
+        height: 44px;
+        margin-top: -20px;
+      }
+      .duration-slider input[type="range"]::-moz-range-thumb {
+        width: 44px;
+        height: 44px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <nav class="tool-nav" aria-label="Tools">
+    <a class="tool-brand" href="index.html">Personal tools</a>
+    <a class="tool-home" href="index.html">All tools</a>
+  </nav>
+  <main class="tool-shell">
+    <div class="tool-content">
+      <header>
+        <h1 class="app-heading">Podcast autoplay</h1>
+        <p class="app-description">
+          Start a random Thomas and Friends Storytime episode from the 7–15 minute range on opening.
+          Search or adjust the length range to choose another story.
+        </p>
+      </header>
+
+      <section class="surface search-panel" aria-label="Episode search">
+        <form id="searchForm" role="search">
+          <div class="search-row">
+            <label for="searchInput">Search</label>
+            <input
+              id="searchInput"
+              type="search"
+              placeholder="Type a title, character, or story detail"
+              autocomplete="off"
+            >
+            <button id="randomButton" class="random-button" type="button" disabled>
+              Play random
+            </button>
+          </div>
+          <fieldset class="duration-filter">
+            <legend>Episode length</legend>
+            <div class="duration-labels">
+              <label for="durationMin">Min: <output id="durationMinValue" for="durationMin">7 min</output></label>
+              <label for="durationMax">Max: <output id="durationMaxValue" for="durationMax">15 min</output></label>
+            </div>
+            <div id="durationSlider" class="duration-slider">
+              <div class="duration-track" aria-hidden="true"></div>
+              <input id="durationMin" type="range" min="0" max="35" step="1" value="7"
+                     aria-label="Minimum episode length" aria-valuetext="7 minutes">
+              <input id="durationMax" type="range" min="0" max="35" step="1" value="15"
+                     aria-label="Maximum episode length" aria-valuetext="15 minutes">
+            </div>
+            <div class="duration-scale" aria-hidden="true">
+              <span>0 min</span>
+              <span id="durationLimit">35 min</span>
+            </div>
+          </fieldset>
+        </form>
+        <div class="status-row">
+          <div id="status" class="result-meta">Loading episodes…</div>
+          <div id="meta" class="result-meta"></div>
+        </div>
+      </section>
+
+      <section id="results" class="results-list" aria-live="polite"></section>
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0"></script>
+  <script>
+    const state = {
+      episodes: [],
+      fuse: null,
+      query: ''
+    }
+
+    const searchInput = document.getElementById('searchInput')
+    const resultsEl = document.getElementById('results')
+    const statusEl = document.getElementById('status')
+    const metaEl = document.getElementById('meta')
+    const randomButton = document.getElementById('randomButton')
+    const searchForm = document.getElementById('searchForm')
+    const durationMin = document.getElementById('durationMin')
+    const durationMax = document.getElementById('durationMax')
+    const durationSlider = document.getElementById('durationSlider')
+    const durationMinValue = document.getElementById('durationMinValue')
+    const durationMaxValue = document.getElementById('durationMaxValue')
+    const MAX_SNIPPET = 240
+
+    const setStatus = (message) => {
+      statusEl.textContent = message
+    }
+
+    const formatDate = (value) => {
+      if (!value) return 'Unknown date'
+      const date = new Date(value)
+      if (Number.isNaN(date.getTime())) return 'Unknown date'
+      return date.toLocaleDateString(undefined, {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      })
+    }
+
+    const truncate = (text, max) => {
+      if (text.length <= max) return text
+      return `${text.slice(0, max)}…`
+    }
+
+    const buildSnippet = (text, query) => {
+      const cleanText = text || ''
+      if (!cleanText) return 'No description available.'
+      if (!query) return truncate(cleanText, MAX_SNIPPET)
+      const lowerText = cleanText.toLowerCase()
+      const lowerQuery = query.toLowerCase()
+      const index = lowerText.indexOf(lowerQuery)
+      if (index === -1) {
+        return truncate(cleanText, MAX_SNIPPET)
+      }
+      const start = Math.max(0, index - 90)
+      const end = Math.min(cleanText.length, index + lowerQuery.length + 140)
+      const prefix = start > 0 ? '…' : ''
+      const suffix = end < cleanText.length ? '…' : ''
+      return prefix + cleanText.slice(start, end) + suffix
+    }
+
+    const parseDateValue = (value) => {
+      if (!value) return 0
+      const date = new Date(value)
+      if (Number.isNaN(date.getTime())) return 0
+      return date.getTime()
+    }
+
+    const formatDuration = (value) => {
+      if (value === null || value === undefined) return ''
+      const total = Number(value)
+      if (!Number.isFinite(total) || total <= 0) return ''
+      const hours = Math.floor(total / 3600)
+      const minutes = Math.floor((total % 3600) / 60)
+      const seconds = Math.floor(total % 60)
+      if (hours > 0) {
+        return `${hours}h ${minutes.toString().padStart(2, '0')}m`
+      }
+      return `${minutes}m ${seconds.toString().padStart(2, '0')}s`
+    }
+
+    const renderResults = (items, query) => {
+      resultsEl.replaceChildren()
+      if (!items.length) {
+        const emptyCard = document.createElement('div')
+        emptyCard.className = 'result-card surface'
+        const emptyTitle = document.createElement('h2')
+        emptyTitle.className = 'result-title'
+        emptyTitle.textContent = 'No matches found'
+        const emptyText = document.createElement('p')
+        emptyText.className = 'snippet'
+        emptyText.textContent = 'Try another keyword or adjust the episode length range.'
+        emptyCard.appendChild(emptyTitle)
+        emptyCard.appendChild(emptyText)
+        resultsEl.appendChild(emptyCard)
+        metaEl.textContent = '0 results'
+        return
+      }
+
+      items.forEach((item) => {
+        const card = document.createElement('article')
+        card.className = 'result-card surface'
+
+        const title = document.createElement('h2')
+        title.className = 'result-title'
+        title.textContent = item.title || 'Untitled episode'
+
+        const meta = document.createElement('div')
+        meta.className = 'result-meta'
+        const duration = formatDuration(item.duration)
+        meta.textContent = duration
+          ? `${formatDate(item.published)} · ${duration}`
+          : formatDate(item.published)
+
+        const snippet = document.createElement('p')
+        snippet.className = 'snippet'
+        snippet.textContent = buildSnippet(item.description, query)
+
+        const audioWrap = document.createElement('div')
+        audioWrap.className = 'audio-actions'
+
+        if (item.audio_url) {
+          const audio = document.createElement('audio')
+          audio.setAttribute('controls', '')
+          audio.setAttribute('preload', 'none')
+          audio.src = item.audio_url
+          audioWrap.appendChild(audio)
+
+          const audioLink = document.createElement('a')
+          audioLink.className = 'audio-link'
+          audioLink.href = item.audio_url
+          audioLink.target = '_blank'
+          audioLink.rel = 'noopener noreferrer'
+          audioLink.textContent = 'Open audio in new tab'
+          audioWrap.appendChild(audioLink)
+        } else {
+          const noAudio = document.createElement('div')
+          noAudio.className = 'result-meta'
+          noAudio.textContent = 'Audio link not available for this episode.'
+          audioWrap.appendChild(noAudio)
+        }
+
+        card.appendChild(title)
+        card.appendChild(meta)
+        card.appendChild(snippet)
+        card.appendChild(audioWrap)
+        resultsEl.appendChild(card)
+      })
+
+      metaEl.textContent = `${items.length} result${items.length === 1 ? '' : 's'}`
+    }
+
+    const buildFuse = (episodes) => {
+      return new Fuse(episodes, {
+        includeScore: true,
+        minMatchCharLength: 2,
+        threshold: 0.35,
+        keys: [
+          { name: 'title', weight: 0.7 },
+          { name: 'description', weight: 0.3 }
+        ]
+      })
+    }
+
+    const getSearchResults = (query) => {
+      if (!state.fuse) return []
+      const results = state.fuse.search(query)
+      const mapped = results.map((entry) => ({
+        item: entry.item,
+        score: entry.score ?? 1
+      }))
+
+      mapped.sort((a, b) => {
+        const scoreDiff = a.score - b.score
+        if (Math.abs(scoreDiff) > 0.05) return scoreDiff
+        return parseDateValue(b.item.published) - parseDateValue(a.item.published)
+      })
+
+      return mapped.map((entry) => entry.item)
+    }
+
+    const getEligibleEpisodes = (query) => {
+      const trimmed = query.trim()
+      const episodes = trimmed ? getSearchResults(trimmed) : state.episodes
+      const minimum = Number(durationMin.value) * 60
+      const maximum = Number(durationMax.value) * 60
+      return episodes.filter((episode) => {
+        const duration = Number(episode.duration)
+        return Number.isFinite(duration) && duration > 0
+          && duration >= minimum && duration <= maximum
+      })
+    }
+
+    const pickRandom = (items) => {
+      return items[Math.floor(Math.random() * items.length)]
+    }
+
+    const tryPlayRenderedAudio = async () => {
+      const audio = resultsEl.querySelector('audio')
+      if (!audio) return
+      audio.addEventListener('play', () => {
+        setStatus('Playing the selected episode.')
+      }, { once: true })
+      try {
+        await audio.play()
+      } catch (error) {
+        if (!resultsEl.contains(audio)) return
+        setStatus(error.name === 'NotAllowedError'
+          ? 'Your browser blocked autoplay. Press play on the selected episode to start listening.'
+          : 'Unable to start playback. Try the play control or open the audio in a new tab.'
+        )
+      }
+    }
+
+    const runSearch = (query) => {
+      state.query = query
+      const trimmed = query.trim()
+      if (!state.fuse) {
+        renderResults([], trimmed)
+        setStatus('Search is not ready yet.')
+        return
+      }
+
+      renderResults(getEligibleEpisodes(trimmed), trimmed)
+      const lengthSummary = ` Episode length: ${durationMin.value}–${durationMax.value} minutes.`
+      setStatus((trimmed ? `Showing matches for "${trimmed}".` : 'Browsing episodes.') + lengthSummary)
+    }
+
+    const playRandomEpisode = () => {
+      window.clearTimeout(debounceTimer)
+      const query = searchInput.value
+      const trimmed = query.trim()
+      state.query = query
+
+      if (!state.episodes.length) {
+        renderResults([], trimmed)
+        setStatus('Random play is not ready yet.')
+        return
+      }
+
+      const eligibleEpisodes = getEligibleEpisodes(query)
+      if (!eligibleEpisodes.length) {
+        renderResults([], trimmed)
+        setStatus('No episodes match the current search and length filter.')
+        return
+      }
+
+      const episode = pickRandom(eligibleEpisodes)
+      const selectedTitle = episode.title || 'Untitled episode'
+      searchInput.value = selectedTitle
+      state.query = selectedTitle
+      renderResults([episode], selectedTitle)
+      setStatus(trimmed
+        ? `Random pick from matches for "${trimmed}".`
+        : 'Random pick from the selected episode length range.'
+      )
+      tryPlayRenderedAudio()
+    }
+
+    let debounceTimer
+    const handleInput = (event) => {
+      const value = event.target.value
+      window.clearTimeout(debounceTimer)
+      debounceTimer = window.setTimeout(() => runSearch(value), 200)
+    }
+
+    const loadEpisodes = async () => {
+      try {
+        const response = await fetch('resources/episodes.json', { cache: 'no-store' })
+        if (!response.ok) {
+          throw new Error(`Failed to load episodes.json (${response.status})`)
+        }
+        const data = await response.json()
+        state.episodes = Array.isArray(data.episodes) ? data.episodes : []
+        state.fuse = buildFuse(state.episodes)
+        randomButton.disabled = !state.episodes.length
+        const longestMinutes = state.episodes.reduce((longest, episode) => {
+          const duration = Number(episode.duration)
+          return Number.isFinite(duration) ? Math.max(longest, Math.ceil(duration / 60)) : longest
+        }, 15)
+        durationMin.max = longestMinutes
+        durationMax.max = longestMinutes
+        document.getElementById('durationLimit').textContent = `${longestMinutes} min`
+        updateDurationRange()
+        playRandomEpisode()
+      } catch (error) {
+        console.error(error)
+        randomButton.disabled = true
+        setStatus('Unable to load the local episode dataset.')
+        renderResults([], '')
+      }
+    }
+
+    function updateDurationRange(changedInput) {
+      if (Number(durationMin.value) >= Number(durationMax.value)) {
+        if (changedInput === durationMin) {
+          durationMin.value = Number(durationMax.value) - 1
+        } else {
+          durationMax.value = Number(durationMin.value) + 1
+        }
+      }
+      durationMinValue.value = `${durationMin.value} min`
+      durationMaxValue.value = `${durationMax.value} min`
+      durationMin.setAttribute('aria-valuetext', `${durationMin.value} minutes`)
+      durationMax.setAttribute('aria-valuetext', `${durationMax.value} minutes`)
+      const limit = Number(durationMax.max)
+      durationSlider.style.setProperty('--range-start', `${Number(durationMin.value) / limit * 100}%`)
+      durationSlider.style.setProperty('--range-end', `${Number(durationMax.value) / limit * 100}%`)
+    }
+
+    function handleDurationInput(event) {
+      updateDurationRange(event.target)
+      window.clearTimeout(debounceTimer)
+      debounceTimer = window.setTimeout(() => runSearch(searchInput.value), 100)
+    }
+
+    searchInput.addEventListener('input', handleInput)
+    durationMin.addEventListener('input', handleDurationInput)
+    durationMax.addEventListener('input', handleDurationInput)
+    searchForm.addEventListener('submit', (event) => {
+      event.preventDefault()
+      window.clearTimeout(debounceTimer)
+      runSearch(searchInput.value)
+    })
+    randomButton.addEventListener('click', playRandomEpisode)
+    loadEpisodes()
+  </script>
+</body>
+</html>
