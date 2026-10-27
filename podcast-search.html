@@ -51,7 +51,7 @@
       position: relative;
       height: 44px;
       margin: 0 12px;
-      --range-start: 14.2857%;
+      --range-start: 20%;
       --range-end: 42.8571%;
     }
 
@@ -209,13 +209,13 @@
           <fieldset class="duration-filter">
             <legend>Episode length</legend>
             <div class="duration-labels">
-              <label for="durationMin">Min: <output id="durationMinValue" for="durationMin">5 min</output></label>
+              <label for="durationMin">Min: <output id="durationMinValue" for="durationMin">7 min</output></label>
               <label for="durationMax">Max: <output id="durationMaxValue" for="durationMax">15 min</output></label>
             </div>
             <div id="durationSlider" class="duration-slider">
               <div class="duration-track" aria-hidden="true"></div>
-              <input id="durationMin" type="range" min="0" max="35" step="1" value="5"
-                     aria-label="Minimum episode length" aria-valuetext="5 minutes">
+              <input id="durationMin" type="range" min="0" max="35" step="1" value="7"
+                     aria-label="Minimum episode length" aria-valuetext="7 minutes">
               <input id="durationMax" type="range" min="0" max="35" step="1" value="15"
                      aria-label="Maximum episode length" aria-valuetext="15 minutes">
             </div>
