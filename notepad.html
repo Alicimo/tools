@@ -155,7 +155,7 @@
   #menu {
     visibility: hidden;
     transform: scale(0.9) translateY(20px);
-    transition: all 100ms cubic-bezier(0.4, 0, 0.2, 1) 0ms;
+    transition: transform 100ms cubic-bezier(0.4, 0, 0.2, 1), opacity 100ms ease-out;
     opacity: 0;
     display: flex;
     flex-direction: column;
@@ -221,7 +221,7 @@
   </nav>
 <h1 class="notepad-heading noprint">Notepad</h1>
 <article contenteditable="plaintext-only" role="textbox" aria-label="Note text" aria-multiline="true" spellcheck autofocus></article>
-<button id="button" class="noprint" aria-label="Document menu">
+<button id="button" class="noprint" aria-label="Document menu" aria-expanded="false" aria-controls="menu">
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
        stroke="currentColor"
        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -460,7 +460,15 @@
     button.addEventListener('click', event => {
       ripple(event)
       menu.classList.toggle('visible')
+      button.setAttribute('aria-expanded', String(menu.classList.contains('visible')))
       qr.setAttribute('href', '/qr' + location.hash)
+    })
+
+    document.addEventListener('keydown', event => {
+      if (event.key !== 'Escape' || !menu.classList.contains('visible')) return
+      menu.classList.remove('visible')
+      button.setAttribute('aria-expanded', 'false')
+      button.focus()
     })
 
     document.body.addEventListener('click', event => {
@@ -469,6 +477,7 @@
       if (t.closest('#button')) return
       if (t.closest('.ripple')) return
       menu.classList.remove('visible')
+      button.setAttribute('aria-expanded', 'false')
     })
   }
 
@@ -478,8 +487,11 @@
     const diameter = Math.max(button.clientWidth, button.clientHeight)
     const radius = diameter / 2
     circle.style.width = circle.style.height = `${diameter}px`
-    circle.style.left = `${(event.clientX || event.targetTouches[0].pageX) - button.offsetLeft - radius}px`
-    circle.style.top = `${(event.clientY || event.targetTouches[0].pageY) - button.offsetTop - radius}px`
+    const rect = button.getBoundingClientRect()
+    const x = event.detail === 0 ? rect.width / 2 : event.clientX - rect.left
+    const y = event.detail === 0 ? rect.height / 2 : event.clientY - rect.top
+    circle.style.left = `${x - radius}px`
+    circle.style.top = `${y - radius}px`
     circle.classList.add('ripple')
     const ripple = button.getElementsByClassName('ripple')[0]
     if (ripple) ripple.remove()

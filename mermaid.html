@@ -216,14 +216,23 @@
 
   function svgToPngBlob(svgEl, scale = 2) {
     return new Promise((resolve, reject) => {
-      const svgData = new XMLSerializer().serializeToString(svgEl);
-    // A data URL lets Chrome export SVGs containing Mermaid's HTML labels.
-    const url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgData)
+      // Responsive SVGs have no intrinsic pixel size when loaded as an image.
+      // Export the diagram's viewBox rather than the browser's 300 × 150 fallback.
+      const bounds = svgEl.viewBox.baseVal
+      const width = bounds.width || svgEl.getBoundingClientRect().width
+      const height = bounds.height || svgEl.getBoundingClientRect().height
+      const exportSvg = svgEl.cloneNode(true)
+      exportSvg.setAttribute('width', width)
+      exportSvg.setAttribute('height', height)
+      exportSvg.style.maxWidth = 'none'
+      const svgData = new XMLSerializer().serializeToString(exportSvg);
+      // A data URL lets Chrome export SVGs containing Mermaid's HTML labels.
+      const url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgData)
 
       const img = new Image();
       img.onload = () => {
-        const w = img.width * scale;
-        const h = img.height * scale;
+        const w = Math.ceil(width * scale);
+        const h = Math.ceil(height * scale);
 
         const canvas = document.createElement("canvas");
         canvas.width = w;
