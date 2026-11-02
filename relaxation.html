@@ -1,0 +1,860 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dog relaxation timer</title>
+  <link rel="icon" href="resources/icons/relaxation.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" sizes="180x180" href="resources/icons/relaxation-apple-touch-icon.png">
+  <link rel="stylesheet" href="resources/tools.css">
+  <style>
+    .relaxation-shell { max-width: 960px; }
+    .intro, .muted { color: var(--tool-muted); }
+    .settings { display: flex; flex-wrap: wrap; gap: 20px 32px; margin: 28px 0; }
+    .settings .field-row-stacked { flex: 1 1 180px; }
+    .settings input, .settings select { width: 100%; }
+    .session { border-block: 1px solid var(--tool-border); padding: 24px 0; }
+    .session-meta { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; }
+    .eyebrow { color: var(--tool-muted); font-size: 14px; }
+    progress { width: 100%; height: 5px; accent-color: var(--tool-accent); margin: 16px 0 24px; }
+    .exercise { min-height: 72px; max-width: 760px; font-size: clamp(26px, 4vw, 38px); margin: 0 0 16px; }
+    .timer { font-size: clamp(60px, 12vw, 96px); font-variant-numeric: tabular-nums; line-height: 1.2; }
+    .timer-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 24px; }
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; }
+    .next { margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--tool-border); }
+    .next p { margin: 8px 0 0; font-size: 20px; }
+    details { margin-top: 28px; }
+    summary { min-height: 44px; padding-block: 10px; }
+    .task-list { padding-left: 28px; }
+    .task-list li { padding: 8px 0 8px 8px; border-bottom: 1px solid var(--tool-border); }
+    .task-list [aria-current="step"] { font-weight: 600; }
+    .task-list small { display: block; color: var(--tool-muted); font-weight: 400; }
+    .guidance { margin-top: 28px; max-width: 760px; }
+  </style>
+</head>
+<body>
+  <nav class="tool-nav" aria-label="Tools">
+    <a class="tool-brand" href="index.html">Personal tools</a>
+    <a class="tool-home" href="index.html">All tools</a>
+  </nav>
+  <main class="tool-shell relaxation-shell">
+    <header>
+      <h1>Dog relaxation timer</h1>
+      <p class="intro">One exercise at a time, at your dog's pace. Based on Karen Overall's 15 task sets for relaxation, tier 1.</p>
+    </header>
+    <div class="settings" id="settings">
+      <div class="field-row-stacked">
+        <label for="day">Day / task set</label>
+        <select id="day"></select>
+      </div>
+      <div class="field-row-stacked">
+        <label for="treat-delay">Treat break (seconds)</label>
+        <input id="treat-delay" type="number" min="0" max="120" step="1" value="5" aria-describedby="break-help">
+        <small id="break-help" class="muted">0 skips the break. Pause if you need longer.</small>
+      </div>
+      <div class="field-row-stacked">
+        <label for="action-duration">Untimed action guide (seconds)</label>
+        <input id="action-duration" type="number" min="1" max="120" step="1" value="10" aria-describedby="action-help">
+        <small id="action-help" class="muted">Your estimate, not a protocol duration. Always confirm when done.</small>
+      </div>
+    </div>
+    <section class="session" aria-label="Training session">
+      <div class="session-meta">
+        <span id="step" class="eyebrow"></span>
+        <span id="phase" class="eyebrow">Ready</span>
+      </div>
+      <progress id="progress" value="0" max="1" aria-label="Exercises completed"></progress>
+      <div id="announcement" aria-live="polite" aria-atomic="true">
+        <h2 id="exercise" class="exercise"></h2>
+        <p id="instruction" class="muted"></p>
+      </div>
+      <div class="timer-row">
+        <div id="timer" class="timer" role="timer" aria-label="Seconds remaining"></div>
+        <span id="timer-label" class="muted"></span>
+      </div>
+      <div class="actions">
+        <button id="start" class="primary" type="button">Start day</button>
+        <button id="pause" type="button" hidden>Pause</button>
+        <button id="done" class="primary" type="button" hidden>Done — treat</button>
+        <button id="back" type="button" hidden>Previous exercise</button>
+        <button id="repeat" type="button" hidden>Repeat exercise</button>
+        <button id="reset" type="button" hidden>End session</button>
+      </div>
+      <aside class="next" aria-label="Next exercise">
+        <span class="eyebrow" id="next-label">Up next</span>
+        <p id="next"></p>
+      </aside>
+    </section>
+    <p id="notice" class="muted" role="status"></p>
+    <details>
+      <summary id="list-title">View today's exercises</summary>
+      <ol id="task-list" class="task-list"></ol>
+    </details>
+    <section class="guidance" aria-labelledby="guidance-heading">
+      <h2 id="guidance-heading">Keep it relaxed</h2>
+      <p>Reward calm behavior after each successful task. Sitting or lying down is fine. Repeat a day as needed;
+        finishing a timer doesn't mean your dog is ready to move on. If your dog becomes uneasy, reduce the
+        distance, movement or sound, return to an easier exercise, or stop.</p>
+      <p class="muted">Timed movements wait for you to start the timed part. Tasks with several timed parts run
+        each part separately. After a movement, confirm that you've returned and finished before treating.
+        Keep this page visible; switching tabs pauses the session.</p>
+      <p><a href="https://www.karenoverall.com/wp-content/uploads/2019/03/Protocol-for-Relaxation-Tier-1_figures.pdf"
+            target="_blank" rel="noopener">Read the full protocol and task-specific notes (PDF)</a> before starting.
+        Task sequence and durations: Karen L. Overall, 1997 / 2013, task sheets on pages 15–31.
+        This independent timer is a companion to the protocol.</p>
+    </section>
+  </main>
+  <script>
+    // Source: Karen L. Overall, Protocol for relaxation, tier 1 (1997 / 2013), pages 15–31.
+    // Preserve task order, including repeated exercises. Durations are seconds, never step counts.
+    const days = [
+      [ // Day 1
+        {"text": "Sit for 2 seconds", "seconds": [2]},
+        {"text": "Sit for 5 seconds", "seconds": [5]},
+        {"text": "Sit for 10 seconds", "seconds": [10]},
+        {"text": "Sit while you take 1 step back and then return", "seconds": []},
+        {"text": "Sit while you take 2 steps back and then return", "seconds": []},
+        {"text": "Sit for 5 seconds", "seconds": [5]},
+        {"text": "Sit for 10 seconds", "seconds": [10]},
+        {"text": "Sit while you take 1 step to the right and then return", "seconds": []},
+        {"text": "Sit while you take 1 step to the left and then return", "seconds": []},
+        {"text": "Sit for 5 seconds", "seconds": [5]},
+        {"text": "Sit for 10 seconds", "seconds": [10]},
+        {"text": "Sit while you take 2 steps back and return", "seconds": []},
+        {"text": "Sit while you take 2 steps to the right and return", "seconds": []},
+        {"text": "Sit for 5 seconds", "seconds": [5]},
+        {"text": "Sit for 10 seconds", "seconds": [10]},
+        {"text": "Sit for 15 seconds", "seconds": [15]},
+        {"text": "Sit while you take 2 steps to the left and return", "seconds": []},
+        {"text": "Sit for 5 seconds", "seconds": [5]},
+        {"text": "Sit for 10 seconds", "seconds": [10]},
+        {"text": "Sit for 15 seconds", "seconds": [15]},
+        {"text": "Sit while you clap your hands softly once", "seconds": []},
+        {"text": "Sit for 5 seconds", "seconds": [5]},
+        {"text": "Sit for 10 seconds", "seconds": [10]},
+        {"text": "Sit for 15 seconds", "seconds": [15]},
+        {"text": "Sit while you take 3 steps back and return", "seconds": []},
+        {"text": "Sit while you count out loud to 3", "seconds": []},
+        {"text": "Sit while you count out loud to 5", "seconds": []},
+        {"text": "Sit while you count out loud to 10", "seconds": []},
+        {"text": "Sit while you clap your hands softly once", "seconds": []},
+        {"text": "Sit while you count out loud to 5", "seconds": []},
+        {"text": "Sit while you count out loud to 10", "seconds": []},
+        {"text": "Sit while you count out loud to 5", "seconds": []},
+        {"text": "Sit while you count out loud to 10", "seconds": []},
+        {"text": "Sit while you count out loud to 20", "seconds": []},
+        {"text": "Sit while you take 3 steps to the right and return", "seconds": []},
+        {"text": "Sit while you clap your hands softly twice", "seconds": []},
+        {"text": "Sit for 3 seconds", "seconds": [3]},
+        {"text": "Sit for 5 seconds", "seconds": [5]},
+        {"text": "Sit while you take 1 step back and return", "seconds": []},
+        {"text": "Sit for 3 seconds", "seconds": [3]},
+        {"text": "Sit for 10 seconds", "seconds": [10]},
+        {"text": "Sit for 5 seconds", "seconds": [5]},
+        {"text": "Sit for 3 seconds", "seconds": [3]}
+      ],
+      [ // Day 2
+        {"text": "Sit for 5 seconds", "seconds": [5]},
+        {"text": "Sit for 10 seconds", "seconds": [10]},
+        {"text": "Sit while you take 1 step back and return", "seconds": []},
+        {"text": "Sit while you take 3 steps back and return", "seconds": []},
+        {"text": "Sit for 10 seconds", "seconds": [10]},
+        {"text": "Sit while you take 3 steps to the right and return", "seconds": []},
+        {"text": "Sit while you take 3 steps to the left and return", "seconds": []},
+        {"text": "Sit for 10 seconds", "seconds": [10]},
+        {"text": "Sit while you take 3 steps to the right and clap your hands", "seconds": []},
+        {"text": "Sit while you take 3 steps to the left and clap your hands", "seconds": []},
+        {"text": "Sit for 5 seconds", "seconds": [5]},
+        {"text": "Sit for 10 seconds", "seconds": [10]},
+        {"text": "Sit while you walk 1/4 the way around the dog to the right", "seconds": []},
+        {"text": "Sit while you take 4 steps back", "seconds": []},
+        {"text": "Sit while you walk 1/4 the way around the dog to the left", "seconds": []},
+        {"text": "Sit for 10 seconds", "seconds": [10]},
+        {"text": "Sit while you take 5 steps back from the dog, clapping your hands, and return", "seconds": []},
+        {"text": "Sit while you walk 1/2 way around the dog to the right and return", "seconds": []},
+        {"text": "Sit while you walk 1/2 way around the dog to the left and return", "seconds": []},
+        {"text": "Sit for 5 seconds", "seconds": [5]},
+        {"text": "Sit for 10 seconds", "seconds": [10]},
+        {"text": "Sit while you jog quietly in place for 3 seconds", "seconds": [3]},
+        {"text": "Sit while you jog quietly in place for 5 seconds", "seconds": [5]},
+        {"text": "Sit while you jog quietly in place for 10 seconds", "seconds": [10]},
+        {"text": "Sit for 10 seconds", "seconds": [10]},
+        {"text": "Sit while you jog 1/4 way around dog to right and return", "seconds": []},
+        {"text": "Sit while you jog 1/4 way around dog to left and return", "seconds": []},
+        {"text": "Sit for 5 seconds", "seconds": [5]},
+        {"text": "Sit for 10 seconds", "seconds": [10]}
+      ],
+      [ // Day 3
+        {"text": "Sit for 10 seconds", "seconds": [10]},
+        {"text": "Sit for 15 seconds", "seconds": [15]},
+        {"text": "Sit while you take 2 steps backwards and return", "seconds": []},
+        {"text": "Sit while you jog 5 steps backwards from dog and return", "seconds": []},
+        {"text": "Sit while you walk 1/2 way around the dog to the right and return", "seconds": []},
+        {"text": "Sit while you walk 1/2 way around the dog to the left and return", "seconds": []},
+        {"text": "Sit while you take 10 steps backwards and return", "seconds": []},
+        {"text": "Sit for 5 seconds", "seconds": [5]},
+        {"text": "Sit for 10 seconds", "seconds": [10]},
+        {"text": "Sit for 15 seconds", "seconds": [15]},
+        {"text": "Sit while you take 10 steps to the left and return", "seconds": []},
+        {"text": "Sit while you take 10 steps to the right and return", "seconds": []},
+        {"text": "Sit for 5 seconds", "seconds": [5]},
+        {"text": "Sit for 10 seconds", "seconds": [10]},
+        {"text": "Sit for 15 seconds", "seconds": [15]},
+        {"text": "Sit for 20 seconds", "seconds": [20]},
+        {"text": "Sit while you walk 1/2 way around the dog to the right, clap your hands, and return", "seconds": []},
+        {"text": "Sit for 20 seconds", "seconds": [20]},
+        {"text": "Sit while you walk 1/2 way around the dog to the left, clap your hands, and return", "seconds": []},
+        {"text": "Sit for 10 seconds", "seconds": [10]},
+        {"text": "Sit while you jog 10 steps to the right and return", "seconds": []},
+        {"text": "Sit while you jog 10 steps to the left and return", "seconds": []},
+        {"text": "Sit while you jog in place for 10 seconds", "seconds": [10]},
+        {"text": "Sit for 5 second", "seconds": [5]},
+        {"text": "Sit for 10 seconds", "seconds": [10]},
+        {"text": "Sit for 15 seconds", "seconds": [15]},
+        {"text": "Sit while you jog in place for 20 seconds", "seconds": [20]},
+        {"text": "Sit for 10 seconds", "seconds": [10]},
+        {"text": "Sit while you jog backwards 5 steps and return", "seconds": []},
+        {"text": "Sit while you jog to the right 5 steps and return", "seconds": []},
+        {"text": "Sit while you jog to the left 5 steps and return", "seconds": []},
+        {"text": "Sit for 5 seconds while you clap your hands", "seconds": [5]},
+        {"text": "Sit for 10 seconds while you clap your hands", "seconds": [10]},
+        {"text": "Sit for 10 seconds", "seconds": [10]},
+        {"text": "Sit for 5 seconds", "seconds": [5]}
+      ],
+      [ // Day 4
+        {"text": "Sit for 5 seconds", "seconds": [5]},
+        {"text": "Sit for 10 seconds", "seconds": [10]},
+        {"text": "Sit while you jog backwards 5 steps and return", "seconds": []},
+        {"text": "Sit for 5 seconds", "seconds": [5]},
+        {"text": "Sit for 10 seconds", "seconds": [10]},
+        {"text": "Sit for 20 seconds", "seconds": [20]},
+        {"text": "Sit while you jog 1/2 way around the dog to the right and return", "seconds": []},
+        {"text": "Sit while you jog 1/2 way around the dog to left and return", "seconds": []},
+        {"text": "Sit while you move 3/4 of the way around the dog to the right and return", "seconds": []},
+        {"text": "Sit while you move 3/4 of the way around the dog to the left and return", "seconds": []},
+        {"text": "Sit while you jog backwards 5 steps, clapping your hands and return", "seconds": []},
+        {"text": "Sit for 10 seconds", "seconds": [10]},
+        {"text": "Sit for 15 seconds", "seconds": [15]},
+        {"text": "Sit while you clap your hands for 20 seconds", "seconds": [20]},
+        {"text": "Sit while you quickly move backwards 10 steps and return", "seconds": []},
+        {"text": "Sit while you quickly move 15 steps backwards and return", "seconds": []},
+        {"text": "Sit for 20 seconds", "seconds": [20]},
+        {"text": "Sit while you jog 1/2 way around the dog to the right and return", "seconds": []},
+        {"text": "Sit while you jog 1/2 way around the dog to left and return", "seconds": []},
+        {"text": "Sit while you quickly walk 15 steps to the left and return", "seconds": []},
+        {"text": "Sit while you quickly walk 15 steps to the right and return", "seconds": []},
+        {"text": "Sit for 20 seconds", "seconds": [20]},
+        {"text": "Sit while you move 3/4 of the way around the dog to the right and return", "seconds": []},
+        {"text": "Sit while you move 3/4 of the way around the dog to the left and return", "seconds": []},
+        {"text": "Sit while you walk all the way around the dog", "seconds": []},
+        {"text": "Sit while you walk approximately 20 steps to an entrance and return", "seconds": []},
+        {"text": "Sit while you walk approximately 20 steps to an entrance, clapping your hands, and return", "seconds": []},
+        {"text": "Sit while you walk around the dog, quietly clapping your hands and then return", "seconds": []},
+        {"text": "Sit for 20 seconds", "seconds": [20]},
+        {"text": "Sit while you quickly jog around the dog", "seconds": []},
+        {"text": "Sit for 20 seconds", "seconds": [20]},
+        {"text": "Sit for 10 seconds while you clap your hands", "seconds": [10]}
+      ],
+      [ // Day 5
+        {"text": "Sit for 5 seconds", "seconds": [5]},
+        {"text": "Sit for 15 seconds", "seconds": [15]},
+        {"text": "Sit while you walk quickly 15 steps to the right and return", "seconds": []},
+        {"text": "Sit while you walk quickly 15 steps to the left and return", "seconds": []},
+        {"text": "Sit while you walk approximately 20 steps to an entrance and return", "seconds": []},
+        {"text": "Sit while you walk approximately 20 steps to an entrance, clapping your hands, and return", "seconds": []},
+        {"text": "Sit for 20 seconds", "seconds": [20]},
+        {"text": "Sit while you walk around the dog, clapping your hands", "seconds": []},
+        {"text": "Sit for 20 seconds", "seconds": [20]},
+        {"text": "Sit for 10 seconds", "seconds": [10]},
+        {"text": "Sit while you walk quickly backwards, clapping your hands, and return", "seconds": []},
+        {"text": "Sit while you walk approximately 20 steps to an entrance and return", "seconds": []},
+        {"text": "Sit while you walk approximately 20 steps to an entrance, clapping your hands, and return", "seconds": []},
+        {"text": "Sit while you go to an entrance and just touch the doorknob or wall and return", "seconds": []},
+        {"text": "Sit for 10 seconds", "seconds": [10]},
+        {"text": "Sit while you walk quickly backwards, clapping your hands, and return", "seconds": []},
+        {"text": "Sit while you walk approximately 20 steps to an entrance and return", "seconds": []},
+        {"text": "Sit while you walk approximately 20 steps to an entrance, clapping your hands, and return", "seconds": []},
+        {"text": "Sit while you go to an entrance and just touch the doorknob or wall and return", "seconds": []},
+        {"text": "Sit for 20 seconds", "seconds": [20]},
+        {"text": "Sit while you walk approximately 20 steps to an entrance, clapping your hands, and return", "seconds": []},
+        {"text": "Sit while you go to an entrance and just touch the doorknob or wall and return", "seconds": []},
+        {"text": "Sit for 10 seconds", "seconds": [10]},
+        {"text": "Sit while the doorknob is touched or you move into entryway and return", "seconds": []},
+        {"text": "Sit for 10 seconds", "seconds": [10]},
+        {"text": "Sit for 15 seconds while you clap your hands", "seconds": [15]},
+        {"text": "Sit for 10 seconds while you jog in place", "seconds": [10]},
+        {"text": "Sit for 5 seconds", "seconds": [5]}
+      ],
+      [ // Day 6
+        {"text": "Sit for 10 seconds", "seconds": [10]},
+        {"text": "Sit for 20 seconds while you jog back and forth in front of the dog", "seconds": [20]},
+        {"text": "Sit for 15 seconds", "seconds": [15]},
+        {"text": "Sit while you walk approximately 20 steps to an entrance and return", "seconds": []},
+        {"text": "Sit while you walk quickly backwards, clapping your hands, and return", "seconds": []},
+        {"text": "Sit while you go to an entrance and just touch the doorknob or wall and return", "seconds": []},
+        {"text": "Sit for 20 seconds while jogging", "seconds": [20]},
+        {"text": "Sit while you walk around the dog", "seconds": []},
+        {"text": "Sit while you walk around the dog clapping your hands", "seconds": []},
+        {"text": "Sit for 15 seconds", "seconds": [15]},
+        {"text": "Sit for 20 seconds", "seconds": [20]},
+        {"text": "Sit for 30 seconds", "seconds": [30]},
+        {"text": "Sit while you walk quickly backwards, clapping your hands, and return", "seconds": []},
+        {"text": "Sit while you go to an entrance and just touch the doorknob or wall and return", "seconds": []},
+        {"text": "Sit while you open the door or go into the entrance for 5 seconds and then return", "seconds": [5]},
+        {"text": "Sit while you open the door or go into the entrance for 10 seconds and then return", "seconds": [10]},
+        {"text": "Sit for 30 seconds", "seconds": [30]},
+        {"text": "Sit while you walk quickly backwards, clapping your hands, and return", "seconds": []},
+        {"text": "Sit while you go to an entrance and just touch the doorknob or wall and return", "seconds": []},
+        {"text": "Sit for 10 seconds", "seconds": [10]},
+        {"text": "Sit while you go through the door or the entranceway and then return", "seconds": []},
+        {"text": "Sit while you go through the door or the entranceway, clapping your hands and then return", "seconds": []},
+        {"text": "Sit while you open the door or go into the entrance for 10 seconds and then return", "seconds": [10]},
+        {"text": "Sit for 30 seconds", "seconds": [30]},
+        {"text": "Sit while you disappear from view for 5 seconds and then return", "seconds": [5]},
+        {"text": "Sit for 20 seconds", "seconds": [20]},
+        {"text": "Sit for 10 seconds while you clap your hands", "seconds": [10]},
+        {"text": "Sit for 5 seconds", "seconds": [5]}
+      ],
+      [ // Day 7
+        {"text": "Sit for 10 seconds", "seconds": [10]},
+        {"text": "Sit for 20 seconds while you clap your hands", "seconds": [20]},
+        {"text": "Sit while you take 10 steps backwards and return", "seconds": []},
+        {"text": "Sit while you walk around the dog", "seconds": []},
+        {"text": "Sit while you go through the door or the entranceway and then return", "seconds": []},
+        {"text": "Sit while you go through the door or the entranceway, clapping your hands and then return", "seconds": []},
+        {"text": "Sit while you open the door or go into the entrance for 10 seconds and then return", "seconds": [10]},
+        {"text": "Sit for 30 seconds", "seconds": [30]},
+        {"text": "Sit while you disappear from view for 5 seconds and then return", "seconds": [5]},
+        {"text": "Sit while you go through the door or the entranceway and then return", "seconds": []},
+        {"text": "Sit while you go through the door or the entranceway, clapping your hands and then return", "seconds": []},
+        {"text": "Sit while you open the door or go into the entrance for 10 seconds and then return", "seconds": [10]},
+        {"text": "Sit for 10 seconds", "seconds": [10]},
+        {"text": "Sit for 20 seconds", "seconds": [20]},
+        {"text": "Sit for 30 seconds", "seconds": [30]},
+        {"text": "Sit while you disappear from view for 10 seconds and then return", "seconds": [10]},
+        {"text": "Sit while you disappear from view for 15 seconds and then return", "seconds": [15]},
+        {"text": "Sit for 10 seconds", "seconds": [10]},
+        {"text": "Sit for 15 seconds", "seconds": [15]},
+        {"text": "Sit for 5 seconds while you clap your hands", "seconds": [5]},
+        {"text": "Sit while you jog in place for 10 seconds", "seconds": [10]},
+        {"text": "Sit while you jog 3/4 of the way to the right and return", "seconds": []},
+        {"text": "Sit while you jog 3/4 of the way to the left and return", "seconds": []},
+        {"text": "Sit while you go through the door or the entranceway, clapping your hands and then return", "seconds": []},
+        {"text": "Sit while you open the door or go into the entrance for 10 seconds and then return", "seconds": [10]},
+        {"text": "Sit for 30 seconds", "seconds": [30]},
+        {"text": "Sit while you disappear from view for 15 seconds and then return", "seconds": [15]},
+        {"text": "Sit for 10 seconds", "seconds": [10]},
+        {"text": "Sit for 5 seconds", "seconds": [5]}
+      ],
+      [ // Day 8
+        {"text": "Sit for 10 seconds", "seconds": [10]},
+        {"text": "Sit for 15 seconds while you jog and clap your hands", "seconds": [15]},
+        {"text": "Sit while you back up 15 steps and return", "seconds": []},
+        {"text": "Sit while you circle the dog and return", "seconds": []},
+        {"text": "Sit while you disappear from view for 20 seconds and return", "seconds": [20]},
+        {"text": "Sit while you disappear from view for 25 seconds and return", "seconds": [25]},
+        {"text": "Sit for 5 seconds", "seconds": [5]},
+        {"text": "Sit for 5 seconds while you sit in a chair (placed 5 feet from the dog)", "seconds": [5]},
+        {"text": "Sit for 5 seconds", "seconds": [5]},
+        {"text": "Sit for 15 seconds while you jog and clap your hands", "seconds": [15]},
+        {"text": "Sit while you back up 15 steps and return", "seconds": []},
+        {"text": "Sit while you circle the dog and return", "seconds": []},
+        {"text": "Sit while you disappear from view for 20 seconds and return", "seconds": [20]},
+        {"text": "Sit while you disappear from view for 30 seconds and return", "seconds": [30]},
+        {"text": "Sit for 5 seconds", "seconds": [5]},
+        {"text": "Sit while you circle the dog and return", "seconds": []},
+        {"text": "Sit while you disappear from view for 20 seconds and return", "seconds": [20]},
+        {"text": "Sit while you disappear from view for 25 seconds and return", "seconds": [25]},
+        {"text": "Sit for 5 seconds while you sit in a chair near the dog", "seconds": [5]},
+        {"text": "Sit while you disappear from view for 10 seconds, sit in the chair for 5 seconds, and return", "seconds": [10, 5]},
+        {"text": "Sit for 10 seconds", "seconds": [10]},
+        {"text": "Sit for 20 seconds while you jog and clap", "seconds": [20]},
+        {"text": "Sit for 15 seconds while you run around", "seconds": [15]},
+        {"text": "Sit for 10 seconds", "seconds": [10]},
+        {"text": "Sit for 5 seconds while you turn around", "seconds": [5]},
+        {"text": "Sit for 5 seconds while you sit in a chair near the dog", "seconds": [5]},
+        {"text": "Sit while you disappear from view for 10 seconds, sit in the chair for 5 seconds, and return", "seconds": [10, 5]},
+        {"text": "Sit for 10 seconds", "seconds": [10]}
+      ],
+      [ // Day 9
+        {"text": "Sit for 5 seconds", "seconds": [5]},
+        {"text": "Sit for 10 seconds while you turn around", "seconds": [10]},
+        {"text": "Sit for 5 seconds while you jog", "seconds": [5]},
+        {"text": "Sit while you walk around the dog", "seconds": []},
+        {"text": "Sit while you jog around the dog", "seconds": []},
+        {"text": "Sit while you jog around the dog, clapping your hands", "seconds": []},
+        {"text": "Sit while you jog twice around the dog", "seconds": []},
+        {"text": "Sit for 10 seconds", "seconds": [10]},
+        {"text": "Sit for 15 seconds while you clap your hands", "seconds": [15]},
+        {"text": "Sit for 20 seconds", "seconds": [20]},
+        {"text": "Sit while you move 3/4 of the way around the dog to the right and return", "seconds": []},
+        {"text": "Sit while you move 3/4 of the way around the dog to the left and return", "seconds": []},
+        {"text": "Sit while you disappear from view for 10 seconds and then return", "seconds": [10]},
+        {"text": "Sit while you circle the dog and return", "seconds": []},
+        {"text": "Sit while you disappear from view for 20 seconds and return", "seconds": [20]},
+        {"text": "Sit while you disappear from view for 25 seconds and return", "seconds": [25]},
+        {"text": "Sit for 5 seconds while you sit in a chair near the dog", "seconds": [5]},
+        {"text": "Sit while you disappear from view for 10 seconds, sit in the chair for 5 seconds, and return", "seconds": [10, 5]},
+        {"text": "Sit for 10 seconds", "seconds": [10]},
+        {"text": "Sit while you bend down and touch your toes", "seconds": []},
+        {"text": "Sit while you stretch your arms", "seconds": []},
+        {"text": "Sit while you stretch your arms and jump once", "seconds": []},
+        {"text": "Sit while you touch your toes 5 times", "seconds": []},
+        {"text": "Sit while you stretch your arms and jump 3 times", "seconds": []},
+        {"text": "Sit for 15 seconds", "seconds": [15]},
+        {"text": "Sit for 10 seconds", "seconds": [10]},
+        {"text": "Sit for 5 seconds", "seconds": [5]}
+      ],
+      [ // Day 10
+        {"text": "Sit for 5 seconds and clap", "seconds": [5]},
+        {"text": "Sit for 10 seconds while you touch your toes", "seconds": [10]},
+        {"text": "Sit for 15 seconds while you sit in a chair", "seconds": [15]},
+        {"text": "Sit while you walk quickly 15 steps to the right and return", "seconds": []},
+        {"text": "Sit while you walk quickly 15 steps to the left and return", "seconds": []},
+        {"text": "Sit while you walk approximately 20 steps to an entrance and return", "seconds": []},
+        {"text": "Sit while you leave the dog's view for 5 seconds and return", "seconds": [5]},
+        {"text": "Sit while you leave the dog's view for 10 seconds and return", "seconds": [10]},
+        {"text": "Sit while you leave the dog's view for 15 seconds and return", "seconds": [15]},
+        {"text": "Sit for 10 seconds", "seconds": [10]},
+        {"text": "Sit for 5 seconds", "seconds": [5]},
+        {"text": "Sit while you walk quickly 15 steps to the right and return", "seconds": []},
+        {"text": "Sit while you walk quickly 15 steps to the left and return", "seconds": []},
+        {"text": "Sit while you walk approximately 20 steps to an entrance and return", "seconds": []},
+        {"text": "Sit while you leave the dog's view for 5 seconds and return", "seconds": [5]},
+        {"text": "Sit while you leave the dog's view for 10 seconds and return", "seconds": [10]},
+        {"text": "Sit while you leave the dog's view for 15 seconds and return", "seconds": [15]},
+        {"text": "Sit while you leave the dog's view for 5 seconds, knock softly on the wall and return", "seconds": [5]},
+        {"text": "Sit for 5 seconds", "seconds": [5]},
+        {"text": "Sit while you leave the dog's view for 5 seconds and return", "seconds": [5]},
+        {"text": "Sit while you leave the dog's view for 10 seconds and return", "seconds": [10]},
+        {"text": "Sit while you leave the dog's view for 15 seconds and return", "seconds": [15]},
+        {"text": "Sit while you leave the dog's view for 5 seconds, knock softly on the wall and return", "seconds": [5]},
+        {"text": "Sit while you leave the dog's view, quickly knock softly on the wall and return", "seconds": []},
+        {"text": "Sit for 5 seconds", "seconds": [5]},
+        {"text": "Sit while you leave the dog's view for 10 seconds, knock softly on the wall and return", "seconds": [10]},
+        {"text": "Sit for 10 seconds", "seconds": [10]},
+        {"text": "Sit for 5 seconds", "seconds": [5]}
+      ],
+      [ // Day 11
+        {"text": "Sit for 5 seconds", "seconds": [5]},
+        {"text": "Sit for 10 seconds", "seconds": [10]},
+        {"text": "Sit while you leave the dog's view, quickly knock softly on the wall and return", "seconds": []},
+        {"text": "Sit for 5 seconds", "seconds": [5]},
+        {"text": "Sit while you leave the dog's view for 10 seconds, knock softly on the wall and return", "seconds": [10]},
+        {"text": "Sit for 30 seconds", "seconds": [30]},
+        {"text": "Sit while you leave the dog's view, ring the doorbell, and immediately return", "seconds": []},
+        {"text": "Sit while you leave the dog's view, ring the doorbell, wait 2 seconds, and return", "seconds": [2]},
+        {"text": "Sit for 30 seconds", "seconds": [30]},
+        {"text": "Sit while you leave the dog's view, ring the doorbell, and immediately return", "seconds": []},
+        {"text": "Sit while you leave the dog's view, ring the doorbell, wait 5 seconds, and return", "seconds": [5]},
+        {"text": "Sit for 30 seconds", "seconds": [30]},
+        {"text": "Sit while you leave the dog's view, ring the doorbell, and immediately return", "seconds": []},
+        {"text": "Sit while you leave the dog's view, ring the doorbell, wait 10 seconds, and return", "seconds": [10]},
+        {"text": "Sit for 5 seconds while you jog", "seconds": [5]},
+        {"text": "Sit while you walk around the dog", "seconds": []},
+        {"text": "Sit while you jog around the dog", "seconds": []},
+        {"text": "Sit while you jog around the dog, clapping your hands", "seconds": []},
+        {"text": "Sit while you jog twice around the dog", "seconds": []},
+        {"text": "Sit for 10 seconds", "seconds": [10]},
+        {"text": "Sit for 15 seconds while you clap your hands", "seconds": [15]},
+        {"text": "Sit for 20 seconds", "seconds": [20]},
+        {"text": "Sit while you move 3/4 of the way around the dog to the right and return", "seconds": []},
+        {"text": "Sit while you move 3/4 of the way around the dog to the left and return", "seconds": []},
+        {"text": "Sit while you disappear from view for 10 seconds and then return", "seconds": [10]},
+        {"text": "Sit while you circle the dog and return", "seconds": []},
+        {"text": "Sit for 10 seconds", "seconds": [10]},
+        {"text": "Sit for 5 seconds", "seconds": [5]}
+      ],
+      [ // Day 12
+        {"text": "Sit for 10 seconds", "seconds": [10]},
+        {"text": "Sit for 5 seconds while you clap your hands", "seconds": [5]},
+        {"text": "Sit for 15 seconds", "seconds": [15]},
+        {"text": "Sit for 20 seconds while you hum", "seconds": [20]},
+        {"text": "Sit while you disappear from view for 20 seconds and return", "seconds": [20]},
+        {"text": "Sit while you disappear from view for 25 seconds and return", "seconds": [25]},
+        {"text": "Sit for 5 seconds while you sit in a chair near the dog", "seconds": [5]},
+        {"text": "Sit while you disappear from view for 10 seconds, sit in the chair for 5 seconds, and return", "seconds": [10, 5]},
+        {"text": "Sit for 15 seconds", "seconds": [15]},
+        {"text": "Sit for 20 seconds while you hum", "seconds": [20]},
+        {"text": "Sit while you disappear from view for 20 seconds and return", "seconds": [20]},
+        {"text": "Sit while you disappear from view for 25 seconds and return", "seconds": [25]},
+        {"text": "Sit while you move 3/4 of the way around the dog to the right and return", "seconds": []},
+        {"text": "Sit while you move 3/4 of the way around the dog to the left and return", "seconds": []},
+        {"text": "Sit while you disappear from view for 10 seconds and then return", "seconds": [10]},
+        {"text": "Sit while you circle the dog and return", "seconds": []},
+        {"text": "Sit for 10 seconds", "seconds": [10]},
+        {"text": "Sit while you leave the dog's view, quickly knock softly on the wall and return", "seconds": []},
+        {"text": "Sit for 5 seconds", "seconds": [5]},
+        {"text": "Sit while you leave the dog's view for 10 seconds, knock softly on the wall and return", "seconds": [10]},
+        {"text": "Sit for 30 seconds", "seconds": [30]},
+        {"text": "Sit while you leave the dog's view, ring the doorbell, and immediately return", "seconds": []},
+        {"text": "Sit while you leave the dog's view, ring the doorbell, wait 2 seconds, and return", "seconds": [2]},
+        {"text": "Sit for 30 seconds", "seconds": [30]},
+        {"text": "Sit while you leave the dog's view, say \"hello,\" and return", "seconds": []},
+        {"text": "Sit while you leave the dog's view, say \"hello,\" wait 3 seconds, and return", "seconds": [3]},
+        {"text": "Sit for 10 seconds", "seconds": [10]},
+        {"text": "Sit for 5 seconds", "seconds": [5]}
+      ],
+      [ // Day 13
+        {"text": "Sit for 5 seconds", "seconds": [5]},
+        {"text": "Sit for 15 seconds while you hum", "seconds": [15]},
+        {"text": "Sit for 15 seconds while you hum and clap", "seconds": [15]},
+        {"text": "Sit while you disappear from view for 20 seconds and return", "seconds": [20]},
+        {"text": "Sit while you disappear from view for 25 seconds and return", "seconds": [25]},
+        {"text": "Sit for 5 seconds while you sit in a chair near the dog", "seconds": [5]},
+        {"text": "Sit while you disappear from view for 10 seconds, sit in the chair for 5 seconds, and return", "seconds": [10, 5]},
+        {"text": "Sit for 5 seconds", "seconds": [5]},
+        {"text": "Sit for 10 seconds", "seconds": [10]},
+        {"text": "Sit while you leave the dog's view, quickly knock softly on the wall and return", "seconds": []},
+        {"text": "Sit for 5 seconds", "seconds": [5]},
+        {"text": "Sit while you leave the dog's view for 10 seconds, knock softly on the wall and return", "seconds": [10]},
+        {"text": "Sit for 30 seconds", "seconds": [30]},
+        {"text": "Sit while you leave the dog's view, ring the doorbell, and immediately return", "seconds": []},
+        {"text": "Sit while you leave the dog's view, ring the doorbell, wait 2 seconds, and return", "seconds": [2]},
+        {"text": "Sit for 30 seconds", "seconds": [30]},
+        {"text": "Sit while you leave the dog's view, say \"hello,\" wait 5 seconds, and return", "seconds": [5]},
+        {"text": "Sit while you leave the dog's view, knock or ring the bell, say \"hello,\" wait 5 seconds, and return", "seconds": [5]},
+        {"text": "Sit for 30 seconds", "seconds": [30]},
+        {"text": "Sit while you leave the dog's view, say \"hello,\" wait 5 seconds, and return", "seconds": [5]},
+        {"text": "Sit while you leave the dog's view, knock or ring the bell, say \"hello,\" wait 5 seconds, and return", "seconds": [5]},
+        {"text": "Sit for 20 seconds while you hum", "seconds": [20]},
+        {"text": "Sit for 15 seconds while you clap", "seconds": [15]},
+        {"text": "Sit for 5 seconds", "seconds": [5]},
+        {"text": "Sit while you jog around the dog", "seconds": []},
+        {"text": "Sit for 10 seconds while you clap and hum", "seconds": [10]},
+        {"text": "Sit for 5 seconds while you jog in place", "seconds": [5]},
+        {"text": "Sit while you jog around dog, humming", "seconds": []}
+      ],
+      [ // Day 14
+        {"text": "Sit for 10 seconds", "seconds": [10]},
+        {"text": "Sit for 10 seconds", "seconds": [10]},
+        {"text": "Sit for 5 seconds while you hum and clap", "seconds": [5]},
+        {"text": "Sit while you run around dog", "seconds": []},
+        {"text": "Sit while you walk back and forth to door", "seconds": []},
+        {"text": "Sit while you leave room and quickly knock or ring bell and return", "seconds": []},
+        {"text": "Sit for 5 seconds", "seconds": [5]},
+        {"text": "Sit for 10 seconds", "seconds": [10]},
+        {"text": "Sit for 10 seconds", "seconds": [10]},
+        {"text": "Sit for 5 seconds while you hum and clap", "seconds": [5]},
+        {"text": "Sit while you run around dog", "seconds": []},
+        {"text": "Sit while you walk back and forth to door", "seconds": []},
+        {"text": "Sit while you leave room and quickly knock or ring bell and return", "seconds": []},
+        {"text": "Sit for 5 seconds", "seconds": [5]},
+        {"text": "Sit for 10 seconds", "seconds": [10]},
+        {"text": "Sit while you leave the dog's view for 10 seconds, knock softly on the wall and return", "seconds": [10]},
+        {"text": "Sit for 30 seconds", "seconds": [30]},
+        {"text": "Sit while you leave the dog's view, ring the doorbell, and immediately return", "seconds": []},
+        {"text": "Sit while you leave the dog's view, ring the doorbell, wait 2 seconds, and return", "seconds": [2]},
+        {"text": "Sit for 30 seconds", "seconds": [30]},
+        {"text": "Sit while you leave the dog's view, say \"hello,\" wait 5 seconds, and return", "seconds": [5]},
+        {"text": "Sit while you leave the dog's view, knock or ring the bell, say \"hello,\" wait 10 seconds, and return", "seconds": [10]},
+        {"text": "Sit for 30 seconds", "seconds": [30]},
+        {"text": "Sit while you leave the dog's view, say \"hello,\" wait 10 seconds, and return", "seconds": [10]},
+        {"text": "Sit while you leave the dog's view, knock or ring the bell, say \"hello,\" wait 10 seconds, and return", "seconds": [10]},
+        {"text": "Sit for 20 seconds while you hum", "seconds": [20]},
+        {"text": "Sit for 20 seconds", "seconds": [20]},
+        {"text": "Sit for 5 seconds", "seconds": [5]}
+      ],
+      [ // Day 15
+        {"text": "Sit for 10 seconds", "seconds": [10]},
+        {"text": "Sit for 5 seconds", "seconds": [5]},
+        {"text": "Sit for 15 seconds while you clap and hum", "seconds": [15]},
+        {"text": "Sit while you leave the dog's view, knock or ring the bell, say \"hello,\" talk for 10 seconds, and return", "seconds": [10]},
+        {"text": "Sit for 20 seconds while you hum", "seconds": [20]},
+        {"text": "Sit while you leave the dog's view, say \"hello,\" invite the invisible person in, wait 5 seconds, and return", "seconds": [5]},
+        {"text": "Sit for 10 seconds", "seconds": [10]},
+        {"text": "Sit for 5 seconds", "seconds": [5]},
+        {"text": "Sit while you leave the dog's view, say \"hello,\" invite the invisible person in, wait 10 seconds, and return", "seconds": [10]},
+        {"text": "Sit while you leave the dog's view, say \"hello,\" talk as if to someone for 5 seconds, and return", "seconds": [5]},
+        {"text": "Sit for 5 seconds while you hum and clap", "seconds": [5]},
+        {"text": "Sit while you run around dog", "seconds": []},
+        {"text": "Sit while you walk back and forth to door", "seconds": []},
+        {"text": "Sit while you leave room and quickly knock or ring bell and return", "seconds": []},
+        {"text": "Sit for 5 seconds", "seconds": [5]},
+        {"text": "Sit while you leave the room and knock or ring the bell for 3 seconds and return", "seconds": [3]},
+        {"text": "Sit while you leave the room and knock or ring the bell for 5 seconds", "seconds": [5]},
+        {"text": "Sit while you leave the room and talk to people that aren't there for 3 seconds", "seconds": [3]},
+        {"text": "Sit while you leave the room and talk to people that aren't there for 5 seconds", "seconds": [5]},
+        {"text": "Sit while you leave the room and talk to people that aren't there for 10 seconds", "seconds": [10]},
+        {"text": "Sit while you run around the dog", "seconds": []},
+        {"text": "Sit for 10 seconds while you sit in a chair", "seconds": [10]},
+        {"text": "Sit for 30 seconds while you sit in a chair", "seconds": [30]},
+        {"text": "Sit for 15 seconds while you jog and clap", "seconds": [15]},
+        {"text": "Sit for 5 seconds", "seconds": [5]}
+      ]
+    ]
+
+    const day = document.querySelector('#day')
+    const treatDelay = document.querySelector('#treat-delay')
+    const actionDuration = document.querySelector('#action-duration')
+    const step = document.querySelector('#step')
+    const phaseLabel = document.querySelector('#phase')
+    const exercise = document.querySelector('#exercise')
+    const instruction = document.querySelector('#instruction')
+    const timer = document.querySelector('#timer')
+    const timerLabel = document.querySelector('#timer-label')
+    const progress = document.querySelector('#progress')
+    const next = document.querySelector('#next')
+    const start = document.querySelector('#start')
+    const pause = document.querySelector('#pause')
+    const done = document.querySelector('#done')
+    const back = document.querySelector('#back')
+    const repeat = document.querySelector('#repeat')
+    const reset = document.querySelector('#reset')
+    const notice = document.querySelector('#notice')
+    const taskList = document.querySelector('#task-list')
+    const settingsKey = 'dog-relaxation-settings-v1'
+    let index = 0
+    let part = 0
+    let phase = 'ready'
+    let paused = false
+    let remaining = 0
+    let deadline = 0
+    let interval = null
+    let wakeLock = null
+    let wakeRequest = 0
+
+    days.forEach((tasks, i) => day.add(new Option(`Day ${i + 1} · ${tasks.length} exercises`, i)))
+    try {
+      const saved = JSON.parse(localStorage.getItem(settingsKey))
+      if (saved && Number.isInteger(saved.day) && saved.day >= 0 && saved.day < days.length) day.value = saved.day
+      if (saved && Number.isInteger(saved.delay) && saved.delay >= 0 && saved.delay <= 120) treatDelay.value = saved.delay
+      if (saved && Number.isInteger(saved.action) && saved.action >= 1 && saved.action <= 120) actionDuration.value = saved.action
+    } catch { /* Training also works when browser storage is unavailable. */ }
+
+    function tasks() { return days[Number(day.value)] }
+    function task() { return tasks()[index] }
+    function isSimple() { return task().text.startsWith('Sit for ') }
+    function isActive() { return !['ready', 'complete'].includes(phase) }
+
+    function saveSettings() {
+      treatDelay.value = Math.max(0, Math.min(120, Math.round(Number(treatDelay.value) || 0)))
+      actionDuration.value = Math.max(1, Math.min(120, Math.round(Number(actionDuration.value) || 10)))
+      try {
+        localStorage.setItem(settingsKey, JSON.stringify({
+          day: Number(day.value), delay: Number(treatDelay.value), action: Number(actionDuration.value)
+        }))
+      } catch { notice.textContent = 'Settings could not be saved. This session still works.' }
+    }
+
+    async function keepAwake() {
+      if (!('wakeLock' in navigator) || document.hidden || !isActive() || paused || wakeLock) return
+      const request = ++wakeRequest
+      try {
+        const lock = await navigator.wakeLock.request('screen')
+        if (request !== wakeRequest || !isActive() || paused || document.hidden) {
+          await lock.release()
+          return
+        }
+        wakeLock = lock
+        lock.addEventListener('release', () => { if (wakeLock === lock) wakeLock = null })
+      } catch { /* Screen wake lock is optional. */ }
+    }
+
+    function releaseScreen() {
+      wakeRequest += 1
+      if (wakeLock) {
+        wakeLock.release().catch(() => {})
+        wakeLock = null
+      }
+    }
+
+    function stopClock() {
+      clearInterval(interval)
+      interval = null
+    }
+
+    function runClock(seconds) {
+      stopClock()
+      remaining = seconds * 1000
+      deadline = performance.now() + remaining
+      paused = false
+      if (seconds === 0) { finishTimer(); return }
+      interval = setInterval(tick, 100)
+      render()
+    }
+
+    function tick() {
+      // Never skip through exercises after a suspended or throttled browser timer.
+      if (performance.now() - deadline > 2000) {
+        remaining = Math.max(0, deadline - performance.now())
+        setPaused('Timer interrupted. Resume when you and your dog are ready.')
+        return
+      }
+      remaining = Math.max(0, deadline - performance.now())
+      renderTimer()
+      if (remaining === 0) finishTimer()
+    }
+
+    function beginExercise() {
+      stopClock()
+      part = 0
+      paused = false
+      if (task().seconds.length && !isSimple()) {
+        phase = 'position'
+        remaining = task().seconds[0] * 1000
+        render()
+      } else {
+        phase = 'exercise'
+        runClock(task().seconds[0] || Number(actionDuration.value))
+      }
+      keepAwake()
+    }
+
+    function finishTimer() {
+      stopClock()
+      remaining = 0
+      if (phase === 'treat') { advance(); return }
+      if (!isSimple()) {
+        phase = 'confirm'
+        render()
+        return
+      }
+      reward()
+    }
+
+    function reward() {
+      phase = 'treat'
+      runClock(Number(treatDelay.value))
+    }
+
+    function advance() {
+      if (index === tasks().length - 1) {
+        phase = 'complete'
+        releaseScreen()
+        render()
+        return
+      }
+      index += 1
+      beginExercise()
+    }
+
+    function setPaused(message = '') {
+      if (interval) remaining = Math.max(0, deadline - performance.now())
+      stopClock()
+      paused = true
+      releaseScreen()
+      if (message) notice.textContent = message
+      render()
+    }
+
+    function renderTimer() {
+      timer.textContent = phase === 'complete' ? '✓' : Math.ceil(remaining / 1000).toString().padStart(2, '0')
+    }
+
+    function render() {
+      const active = isActive()
+      const complete = phase === 'complete'
+      const movement = !isSimple()
+      document.querySelector('#settings').hidden = active
+      day.disabled = active
+      treatDelay.disabled = active
+      actionDuration.disabled = active
+      step.textContent = `Day ${Number(day.value) + 1} · Exercise ${index + 1} of ${tasks().length}`
+      progress.max = tasks().length
+      progress.value = complete ? tasks().length : index
+      phaseLabel.textContent = paused ? 'Paused' : {
+        ready: 'Ready', position: 'Get into position', exercise: 'Exercise',
+        confirm: 'Your pace', treat: 'Treat break', complete: 'Session complete'
+      }[phase]
+      exercise.textContent = complete ? 'A calm finish.' : phase === 'treat' ? 'Praise and treat.' : task().text
+      instruction.textContent = {
+        ready: 'Have your treats ready, then start when your dog is settled.',
+        position: part ? 'Move to the next part of the exercise, then start its timer.'
+          : 'Get ready for the timed action, then start its timer when in position.',
+        exercise: task().seconds.length ? (movement ? 'Complete the timed part, then return when appropriate.'
+          : 'Reward calm behavior when the timer finishes.') : 'Guide timer only. Confirm when the movement is finished; take longer if needed.',
+        confirm: part < task().seconds.length - 1 ? 'Timed part finished. Continue to the next timed part when ready.'
+          : 'Finish the action and return to your dog where the task calls for it, then confirm.',
+        treat: 'Reward if the exercise went well. Repeat it if your dog needs another try.',
+        complete: 'Reward the final exercise. Repeat this day whenever needed; move on only when your dog is comfortable.'
+      }[phase]
+      timerLabel.textContent = complete ? 'Day finished' : phase === 'ready' ? 'Ready to begin'
+        : phase === 'treat' ? 'Seconds to next exercise'
+        : !task().seconds.length ? 'Estimated seconds · confirm when done'
+        : `Seconds${task().seconds.length > 1 ? ` · timed part ${part + 1} of ${task().seconds.length}` : ''}`
+      start.hidden = active
+      start.textContent = complete ? 'Repeat day' : 'Start day'
+      pause.hidden = !active
+      pause.textContent = paused ? 'Resume' : 'Pause'
+      done.hidden = !active || paused || phase === 'treat' || (phase === 'exercise' && task().seconds.length > 0)
+      done.textContent = phase === 'position' ? 'Start timed part'
+        : phase === 'confirm' && part < task().seconds.length - 1 ? 'Next timed part' : 'Done — treat'
+      back.hidden = !active
+      back.disabled = index === 0
+      repeat.hidden = !active
+      reset.hidden = !active
+      next.textContent = complete || index === tasks().length - 1 ? 'End of this day. Finish with praise and a treat.' : tasks()[index + 1].text
+      document.querySelector('#next-label').textContent = complete || index === tasks().length - 1 ? 'Finish' : 'Up next'
+      Array.from(taskList.children).forEach((item, i) => {
+        if (i === index && !complete) item.setAttribute('aria-current', 'step')
+        else item.removeAttribute('aria-current')
+      })
+      renderTimer()
+    }
+
+    function loadDay() {
+      notice.textContent = ''
+      stopClock()
+      releaseScreen()
+      index = 0
+      part = 0
+      phase = 'ready'
+      paused = false
+      remaining = task().seconds[0] * 1000 || Number(actionDuration.value) * 1000
+      taskList.replaceChildren(...tasks().map(item => {
+        const li = document.createElement('li')
+        li.textContent = item.text
+        const timing = document.createElement('small')
+        timing.textContent = item.seconds.length ? `${item.seconds.join(' + ')} seconds${item.text.startsWith('Sit for ') ? '' : ' · start in position; confirm after action'}`
+          : `Untimed in source · ${actionDuration.value}-second guide; confirm when done`
+        li.append(timing)
+        return li
+      }))
+      document.querySelector('#list-title').textContent = `View day ${Number(day.value) + 1} · ${tasks().length} exercises`
+      render()
+    }
+
+    start.addEventListener('click', () => {
+      saveSettings()
+      notice.textContent = ''
+      index = 0
+      beginExercise()
+    })
+    pause.addEventListener('click', () => {
+      if (!paused) { setPaused(); return }
+      paused = false
+      notice.textContent = ''
+      if (['exercise', 'treat'].includes(phase)) {
+        if (remaining === 0) finishTimer()
+        else runClock(remaining / 1000)
+      }
+      keepAwake()
+      render()
+    })
+    done.addEventListener('click', () => {
+      if (phase === 'position') {
+        phase = 'exercise'
+        runClock(task().seconds[part])
+      } else if (phase === 'confirm' && part < task().seconds.length - 1) {
+        part += 1
+        phase = 'position'
+        remaining = task().seconds[part] * 1000
+        render()
+      } else reward()
+    })
+    // Repeating/backtracking always pauses for a deliberate restart.
+    repeat.addEventListener('click', () => { beginExercise(); setPaused() })
+    back.addEventListener('click', () => { index = Math.max(0, index - 1); beginExercise(); setPaused() })
+    reset.addEventListener('click', loadDay)
+    day.addEventListener('change', () => { saveSettings(); loadDay() })
+    treatDelay.addEventListener('change', () => { saveSettings(); loadDay() })
+    actionDuration.addEventListener('change', () => { saveSettings(); loadDay() })
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden && isActive() && !paused) setPaused('Session paused because the page was hidden. Resume when ready.')
+    })
+    window.addEventListener('pagehide', () => { if (isActive() && !paused) setPaused(); releaseScreen() })
+    loadDay()
+  </script>
+</body>
+</html>

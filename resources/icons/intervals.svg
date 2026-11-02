@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="180" height="180" viewBox="0 0 96 96">
+  <title>Interval timer</title>
+  <rect width="96" height="96" fill="#477b82"/>
+  <g fill="none" stroke="#fffaf2" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="48" cy="53" r="25"/><path d="M41 19h14m-7 0v9m19 6 6-6M48 37v17l11 7"/>
+  </g>
+</svg>
