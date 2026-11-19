@@ -40,48 +40,21 @@
     .playback-summary {
       display: flex;
       align-items: center;
-      gap: 16px;
-      margin: 20px 0;
-      padding: 16px 0;
-      border-block: 1px solid var(--tool-border);
+      gap: 12px;
+      margin-top: 16px;
     }
 
-    .playback-ring {
-      display: grid;
-      place-content: center;
-      flex: 0 0 auto;
-      width: 96px;
-      aspect-ratio: 1;
-      border-radius: 50%;
-      background:
-        radial-gradient(closest-side, var(--tool-background) 88%, transparent 89%),
-        conic-gradient(var(--tool-accent) var(--played, 0%), var(--tool-border) 0);
-      text-align: center;
-    }
-
-    .playback-remaining {
-      font-size: 20px;
-      font-weight: 600;
-      font-variant-numeric: tabular-nums;
-    }
-
-    .playback-ring-label {
-      font-size: 14px;
-      color: var(--tool-muted);
-    }
-
-    .playback-details {
+    .playback-progress {
+      flex: 1;
       min-width: 0;
-      overflow-wrap: anywhere;
-    }
-
-    .playback-title {
-      display: block;
+      height: 10px;
+      accent-color: var(--tool-accent);
     }
 
     .playback-position {
       color: var(--tool-muted);
       font-variant-numeric: tabular-nums;
+      white-space: nowrap;
     }
 
     .duration-filter {
@@ -254,16 +227,10 @@
               Play random
             </button>
           </div>
-          <div id="playbackSummary" class="playback-summary" role="group"
-               aria-label="Episode playback" hidden>
-            <div id="playbackRing" class="playback-ring">
-              <span id="playbackRemaining" class="playback-remaining"></span>
-              <span class="playback-ring-label">left</span>
-            </div>
-            <div class="playback-details">
-              <strong id="playbackTitle" class="playback-title"></strong>
-              <span id="playbackPosition" class="playback-position"></span>
-            </div>
+          <div id="playbackSummary" class="playback-summary" hidden>
+            <progress id="playbackProgress" class="playback-progress" value="0"
+                      aria-label="Episode playback progress"></progress>
+            <span id="playbackPosition" class="playback-position"></span>
           </div>
           <fieldset class="duration-filter">
             <legend>Episode length</legend>
@@ -314,9 +281,7 @@
     const durationMinValue = document.getElementById('durationMinValue')
     const durationMaxValue = document.getElementById('durationMaxValue')
     const playbackSummary = document.getElementById('playbackSummary')
-    const playbackRing = document.getElementById('playbackRing')
-    const playbackRemaining = document.getElementById('playbackRemaining')
-    const playbackTitle = document.getElementById('playbackTitle')
+    const playbackProgress = document.getElementById('playbackProgress')
     const playbackPosition = document.getElementById('playbackPosition')
     const MAX_SNIPPET = 240
     let activeAudio = null
@@ -379,9 +344,10 @@
     }
 
     function formatClock(seconds) {
-      const hours = Math.floor(seconds / 3600)
-      const minutes = Math.floor(seconds / 60) % 60
-      const remainder = String(seconds % 60).padStart(2, '0')
+      const total = Math.floor(seconds)
+      const hours = Math.floor(total / 3600)
+      const minutes = Math.floor(total / 60) % 60
+      const remainder = String(total % 60).padStart(2, '0')
       if (!hours) return `${minutes}:${remainder}`
       return `${hours}:${String(minutes).padStart(2, '0')}:${remainder}`
     }
@@ -393,18 +359,16 @@
         const duration = Number.isFinite(audio.duration) && audio.duration > 0
           ? audio.duration
           : Number(item.duration)
-        const hasDuration = Number.isFinite(duration) && duration > 0
-        const elapsed = audio.ended && hasDuration ? duration : audio.currentTime
-        const percent = hasDuration ? Math.min(100, elapsed / duration * 100) : 0
-        const position = formatClock(percent === 100 ? Math.ceil(duration) : Math.floor(elapsed))
+        if (!Number.isFinite(duration) || duration <= 0) {
+          playbackProgress.removeAttribute('value')
+          playbackPosition.textContent = `${formatClock(audio.currentTime)} / —`
+          return
+        }
 
-        playbackRing.style.setProperty('--played', `${percent}%`)
-        playbackRemaining.textContent = hasDuration
-          ? formatClock(Math.ceil(Math.max(0, duration - elapsed)))
-          : '—'
-        playbackPosition.textContent = hasDuration
-          ? `${position} of ${formatClock(Math.ceil(duration))} · ${Math.floor(percent)}% played`
-          : `${position} elapsed`
+        const elapsed = audio.ended ? duration : Math.min(audio.currentTime, duration)
+        playbackProgress.max = duration
+        playbackProgress.value = elapsed
+        playbackPosition.textContent = `${formatClock(elapsed)} / ${formatClock(duration)}`
       }
 
       for (const event of ['durationchange', 'timeupdate', 'seeking', 'seeked', 'ended']) {
@@ -416,7 +380,6 @@
         if (!resultsEl.contains(audio)) return
         if (activeAudio !== audio) activeAudio?.pause()
         activeAudio = audio
-        playbackTitle.textContent = item.title || 'Untitled episode'
         updatePlayback()
         playbackSummary.hidden = false
       }
