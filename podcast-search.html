@@ -37,6 +37,53 @@
       white-space: nowrap;
     }
 
+    .playback-summary {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin: 20px 0;
+      padding: 16px 0;
+      border-block: 1px solid var(--tool-border);
+    }
+
+    .playback-ring {
+      display: grid;
+      place-content: center;
+      flex: 0 0 auto;
+      width: 96px;
+      aspect-ratio: 1;
+      border-radius: 50%;
+      background:
+        radial-gradient(closest-side, var(--tool-background) 88%, transparent 89%),
+        conic-gradient(var(--tool-accent) var(--played, 0%), var(--tool-border) 0);
+      text-align: center;
+    }
+
+    .playback-remaining {
+      font-size: 20px;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .playback-ring-label {
+      font-size: 14px;
+      color: var(--tool-muted);
+    }
+
+    .playback-details {
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+
+    .playback-title {
+      display: block;
+    }
+
+    .playback-position {
+      color: var(--tool-muted);
+      font-variant-numeric: tabular-nums;
+    }
+
     .duration-filter {
       margin: 28px 0 12px;
     }
@@ -207,6 +254,17 @@
               Play random
             </button>
           </div>
+          <div id="playbackSummary" class="playback-summary" role="group"
+               aria-label="Episode playback" hidden>
+            <div id="playbackRing" class="playback-ring">
+              <span id="playbackRemaining" class="playback-remaining"></span>
+              <span class="playback-ring-label">left</span>
+            </div>
+            <div class="playback-details">
+              <strong id="playbackTitle" class="playback-title"></strong>
+              <span id="playbackPosition" class="playback-position"></span>
+            </div>
+          </div>
           <fieldset class="duration-filter">
             <legend>Episode length</legend>
             <div class="duration-labels">
@@ -255,7 +313,13 @@
     const durationSlider = document.getElementById('durationSlider')
     const durationMinValue = document.getElementById('durationMinValue')
     const durationMaxValue = document.getElementById('durationMaxValue')
+    const playbackSummary = document.getElementById('playbackSummary')
+    const playbackRing = document.getElementById('playbackRing')
+    const playbackRemaining = document.getElementById('playbackRemaining')
+    const playbackTitle = document.getElementById('playbackTitle')
+    const playbackPosition = document.getElementById('playbackPosition')
     const MAX_SNIPPET = 240
+    let activeAudio = null
 
     const setStatus = (message) => {
       statusEl.textContent = message
@@ -314,7 +378,57 @@
       return `${minutes}m ${seconds.toString().padStart(2, '0')}s`
     }
 
-    const renderResults = (items, query) => {
+    function formatClock(seconds) {
+      const hours = Math.floor(seconds / 3600)
+      const minutes = Math.floor(seconds / 60) % 60
+      const remainder = String(seconds % 60).padStart(2, '0')
+      if (!hours) return `${minutes}:${remainder}`
+      return `${hours}:${String(minutes).padStart(2, '0')}:${remainder}`
+    }
+
+    function trackPlayback(audio, item, showSelection) {
+      function updatePlayback() {
+        if (audio !== activeAudio) return
+
+        const duration = Number.isFinite(audio.duration) && audio.duration > 0
+          ? audio.duration
+          : Number(item.duration)
+        const hasDuration = Number.isFinite(duration) && duration > 0
+        const elapsed = audio.ended && hasDuration ? duration : audio.currentTime
+        const percent = hasDuration ? Math.min(100, elapsed / duration * 100) : 0
+        const position = formatClock(percent === 100 ? Math.ceil(duration) : Math.floor(elapsed))
+
+        playbackRing.style.setProperty('--played', `${percent}%`)
+        playbackRemaining.textContent = hasDuration
+          ? formatClock(Math.ceil(Math.max(0, duration - elapsed)))
+          : '—'
+        playbackPosition.textContent = hasDuration
+          ? `${position} of ${formatClock(Math.ceil(duration))} · ${Math.floor(percent)}% played`
+          : `${position} elapsed`
+      }
+
+      for (const event of ['durationchange', 'timeupdate', 'seeking', 'seeked', 'ended']) {
+        audio.addEventListener(event, updatePlayback)
+      }
+
+      // Show the random selection even if the browser requires a manual play gesture.
+      function showPlayback() {
+        if (!resultsEl.contains(audio)) return
+        if (activeAudio !== audio) activeAudio?.pause()
+        activeAudio = audio
+        playbackTitle.textContent = item.title || 'Untitled episode'
+        updatePlayback()
+        playbackSummary.hidden = false
+      }
+
+      audio.addEventListener('play', showPlayback)
+      if (showSelection) showPlayback()
+    }
+
+    const renderResults = (items, query, { showSelection = false } = {}) => {
+      activeAudio?.pause()
+      activeAudio = null
+      playbackSummary.hidden = true
       resultsEl.replaceChildren()
       if (!items.length) {
         const emptyCard = document.createElement('div')
@@ -354,12 +468,16 @@
         const audioWrap = document.createElement('div')
         audioWrap.className = 'audio-actions'
 
+        card.append(title, meta, snippet, audioWrap)
+        resultsEl.appendChild(card)
+
         if (item.audio_url) {
           const audio = document.createElement('audio')
           audio.setAttribute('controls', '')
           audio.setAttribute('preload', 'none')
           audio.src = item.audio_url
           audioWrap.appendChild(audio)
+          trackPlayback(audio, item, showSelection)
 
           const audioLink = document.createElement('a')
           audioLink.className = 'audio-link'
@@ -374,12 +492,6 @@
           noAudio.textContent = 'Audio link not available for this episode.'
           audioWrap.appendChild(noAudio)
         }
-
-        card.appendChild(title)
-        card.appendChild(meta)
-        card.appendChild(snippet)
-        card.appendChild(audioWrap)
-        resultsEl.appendChild(card)
       })
 
       metaEl.textContent = `${items.length} result${items.length === 1 ? '' : 's'}`
@@ -476,7 +588,7 @@
       const selectedTitle = episode.title || 'Untitled episode'
       searchInput.value = selectedTitle
       state.query = selectedTitle
-      renderResults([episode], selectedTitle)
+      renderResults([episode], selectedTitle, { showSelection: true })
       setStatus(trimmed
         ? `Random pick from matches for "${trimmed}".`
         : 'Random pick from the selected episode length range.'
